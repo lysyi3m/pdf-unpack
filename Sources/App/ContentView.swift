@@ -6,7 +6,7 @@ struct ContentView: View {
 
     var body: some View {
         content
-            .frame(minWidth: 720, minHeight: 460)
+            .frame(minWidth: 380, minHeight: 420)
             .dropDestination(for: URL.self) { urls, _ in
                 guard let pdf = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) else { return false }
                 state.load(url: pdf)
@@ -32,27 +32,42 @@ struct ContentView: View {
     }
 
     private var loadedView: some View {
-        NavigationSplitView {
-            List(state.attachments, selection: $state.selection) { att in
-                AttachmentRow(attachment: att)
-            }
-            .navigationSplitViewColumnWidth(min: 240, ideal: 300)
-            .overlay {
-                if state.attachments.isEmpty {
-                    ContentUnavailableView(
-                        "No Embedded Files",
-                        systemImage: "tray",
-                        description: Text("This PDF has no document-level attachments. (Page-annotation and /AF files aren’t supported in v1.)")
-                    )
+        List(state.attachments, selection: $state.selection) { att in
+            AttachmentRow(attachment: att)
+                .contextMenu {
+                    Button("Quick Look") {
+                        state.selection = att.id
+                        state.toggleQuickLook()
+                    }
+                    Button("Save…") { state.save(att) }
                 }
+        }
+        .overlay {
+            if state.attachments.isEmpty {
+                ContentUnavailableView(
+                    "No Embedded Files",
+                    systemImage: "tray",
+                    description: Text("This PDF has no document-level attachments. (Page-annotation and /AF files aren’t supported in v1.)")
+                )
             }
-        } detail: {
-            PreviewContainer()
+        }
+        // Finder-style spacebar → Quick Look of the selected file.
+        .onKeyPress(.space) {
+            state.toggleQuickLook()
+            return .handled
         }
         .navigationTitle(state.fileName ?? "PDF Unpack")
         .navigationSubtitle(itemCountText)
         .toolbar {
             ToolbarItemGroup {
+                Button {
+                    state.toggleQuickLook()
+                } label: {
+                    Label("Quick Look", systemImage: "eye")
+                }
+                .help("Quick Look (Space)")
+                .disabled(state.selectedAttachment == nil)
+
                 Button("Open…") { state.presentOpenPanel() }
                 Button("Save All…") { state.saveAll() }
                     .disabled(state.attachments.isEmpty)

@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct DropView: View {
     @EnvironmentObject var state: AppState
@@ -12,10 +13,16 @@ struct DropView: View {
                 VStack(spacing: 10) {
                     Image(systemName: "doc.badge.plus").font(.system(size: 40))
                     Text("Drop a PDF here").font(.title3)
-                    Text("or press ⌘O").foregroundStyle(.secondary)
+                    Text("or click to choose · ⌘O").foregroundStyle(.secondary)
                 }
             }
             .padding(30)
+            // Whole padded area is clickable, not just the text/border.
+            .contentShape(Rectangle())
+            .onTapGesture { state.presentOpenPanel() }
+            .onHover { inside in
+                if inside { NSCursor.pointingHand.push() } else { NSCursor.pop() }
+            }
             .dropDestination(for: URL.self) { urls, _ in
                 guard let pdf = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) else { return false }
                 state.load(url: pdf)

@@ -118,6 +118,10 @@ final class AppState: ObservableObject {
         }
     }
 
+    func toggleQuickLook() {
+        QuickLookPresenter.shared.toggle(attachments: attachments, selected: selection)
+    }
+
     func saveAll() {
         guard !attachments.isEmpty else { return }
         let panel = NSOpenPanel()
