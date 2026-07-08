@@ -28,9 +28,12 @@ share them — no third-party dependencies, Apple frameworks only.
 
 ```bash
 brew install xcodegen        # one-time
-xcodegen generate            # generates "PDF Unpack.xcodeproj"
-open "PDF Unpack.xcodeproj"  # then select a signing team and press ⌘R
+make generate                # regenerate "PDF Unpack.xcodeproj" from project.yml
+open "PDF Unpack.xcodeproj"  # select a signing team, then press ⌘R
 ```
+
+Common tasks are wrapped in a `Makefile` — run `make` to list them
+(`generate`, `test`, `build`, `dmg`, `clean`).
 
 The Xcode project is generated from [`project.yml`](project.yml) — it is
 gitignored and must not be hand-edited.
@@ -50,16 +53,15 @@ isolated in the UI-free, unit-tested `PDFUnpackKit` framework.
 | `Sources/Kit/` | `PDFUnpackKit` — UI-free core: CGPDF extractor, PDF date parsing, models, filename hygiene |
 | `Sources/App/` | The SwiftUI app (imports `PDFUnpackKit`) |
 | `Tests/` | Unit tests (`@testable import PDFUnpackKit`) |
-| `tools/` | `make_fixture.py` — pikepdf test-fixture generator (not shipped) |
 | `fixtures/` | `sample-protected.pdf` — synthetic test fixture (password: `test123`) |
 
 ## Testing
 
+The synthetic test fixture (`fixtures/sample-protected.pdf`, password `test123`)
+is committed, so the tests run with no setup:
+
 ```bash
-python3 -m pip install pikepdf   # one-time, to (re)generate the fixture
-python3 tools/make_fixture.py    # writes fixtures/sample-protected.pdf
-xcodebuild test -project "PDF Unpack.xcodeproj" -scheme "PDF Unpack" \
-  -destination 'platform=macOS'
+make test
 ```
 
 ## Scope

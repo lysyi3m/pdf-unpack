@@ -4,6 +4,7 @@
 # ── Xcode build output & user state ──
 build/
 DerivedData/
+*.dmg
 *.xcuserstate
 xcuserdata/
 *.moved-aside
