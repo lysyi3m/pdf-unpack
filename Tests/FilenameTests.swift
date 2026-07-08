@@ -36,4 +36,12 @@ final class FilenameTests: XCTestCase {
         XCTAssertEqual(Filename.deduplicated("README", taken: &taken), "README")
         XCTAssertEqual(Filename.deduplicated("README", taken: &taken), "README 2")
     }
+
+    func testDeduplicationIsCaseInsensitive() {
+        // Typical macOS volumes are case-insensitive, so File.txt and file.txt
+        // collide on disk. Original case is preserved in the returned name.
+        var taken = Set<String>()
+        XCTAssertEqual(Filename.deduplicated("Report.pdf", taken: &taken), "Report.pdf")
+        XCTAssertEqual(Filename.deduplicated("report.pdf", taken: &taken), "report 2.pdf")
+    }
 }

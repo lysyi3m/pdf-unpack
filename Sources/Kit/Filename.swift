@@ -18,17 +18,21 @@ public enum Filename {
         return s.isEmpty ? "Untitled" : s
     }
 
-    /// Return a name not already in `taken`, inserting the result. Collisions get
+    /// Return a name not already in `taken`, reserving the result. Collisions get
     /// a numeric suffix before the extension: `report.pdf` → `report 2.pdf`.
+    ///
+    /// Matching is case-insensitive because typical macOS volumes are, so
+    /// `File.txt` and `file.txt` would collide on disk. `taken` holds the
+    /// reserved names lowercased; the returned string keeps its original case.
     public static func deduplicated(_ name: String, taken: inout Set<String>) -> String {
-        if taken.insert(name).inserted { return name }
+        if taken.insert(name.lowercased()).inserted { return name }
         let ns = name as NSString
         let ext = ns.pathExtension
         let base = ns.deletingPathExtension
         var i = 2
         while true {
             let candidate = ext.isEmpty ? "\(base) \(i)" : "\(base) \(i).\(ext)"
-            if taken.insert(candidate).inserted { return candidate }
+            if taken.insert(candidate.lowercased()).inserted { return candidate }
             i += 1
         }
     }

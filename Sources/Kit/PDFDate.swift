@@ -31,18 +31,26 @@ public enum PDFDate {
         if let sign = s.first {
             switch sign {
             case "Z", "z":
-                break
+                s = s.dropFirst()
             case "+", "-":
                 s = s.dropFirst()
-                let tzHour = take(2) ?? 0
+                // A sign must be followed by a real hour offset; a bare "+" is
+                // malformed, not "UTC-ish".
+                guard let tzHour = take(2) else { return nil }
                 if s.first == "'" { s = s.dropFirst() }
                 let tzMinute = take(2) ?? 0
+                if s.first == "'" { s = s.dropFirst() }
                 let offset = (tzHour * 3600 + tzMinute * 60) * (sign == "-" ? -1 : 1)
                 timeZone = TimeZone(secondsFromGMT: offset)
             default:
-                break
+                return nil
             }
         }
+
+        // Anything left over means the input didn't match the grammar. The
+        // parser documents nil-on-malformed, so honor that rather than silently
+        // accepting trailing junk.
+        guard s.isEmpty else { return nil }
 
         var components = DateComponents()
         components.calendar = Calendar(identifier: .gregorian)

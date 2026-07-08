@@ -14,7 +14,7 @@ extension Attachment: @retroactive Transferable {
         }
         // Without this the drop lands as an extension-less "data" file, because
         // the exported type is generic public.data. The name carries the real
-        // filename + extension for Finder.
-        .suggestedFileName { $0.name }
+        // filename + extension for Finder — sanitized to match the Save flow.
+        .suggestedFileName { Filename.sanitized($0.name) }
     }
 }

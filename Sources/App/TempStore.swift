@@ -26,14 +26,24 @@ final class TempStore {
         if let url = cache[att.id] { return url }
 
         try FileManager.default.createDirectory(at: sessionDir, withIntermediateDirectories: true)
-        let filename = Filename.deduplicated(Filename.sanitized(att.name), taken: &usedNames)
+        // Reserve the deduped name against a copy and only commit it if the
+        // write succeeds, so a failed write doesn't burn a name for the session.
+        var reserved = usedNames
+        let filename = Filename.deduplicated(Filename.sanitized(att.name), taken: &reserved)
         let url = sessionDir.appendingPathComponent(filename)
         try att.data.write(to: url)
+        usedNames = reserved
         cache[att.id] = url
         return url
     }
 
+    /// Synchronized with `materialize` so cleanup can't race a concurrent
+    /// drag/Quick Look write mid-materialization.
     func cleanup() {
+        lock.lock()
+        defer { lock.unlock() }
         try? FileManager.default.removeItem(at: sessionDir)
+        cache.removeAll()
+        usedNames.removeAll()
     }
 }

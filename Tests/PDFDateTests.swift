@@ -51,4 +51,13 @@ final class PDFDateTests: XCTestCase {
         XCTAssertNil(PDFDate.parse("D:abcd"))
         XCTAssertNil(PDFDate.parse("garbage"))
     }
+
+    func testBareTimezoneSignIsMalformed() {
+        XCTAssertNil(PDFDate.parse("D:20240115103000+"))
+    }
+
+    func testTrailingJunkIsMalformed() {
+        XCTAssertNil(PDFDate.parse("D:20240115103000ZXYZ"))
+        XCTAssertNil(PDFDate.parse("D:20240115103000Q"))
+    }
 }

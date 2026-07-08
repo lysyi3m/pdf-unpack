@@ -60,13 +60,27 @@ public final class PDFAttachmentExtractor {
               let root = efNode else { return [] }
 
         var results: [RawAttachment] = []
-        walkNameTree(root, into: &results)
+        var visited = Set<UnsafeRawPointer>()
+        walkNameTree(root, into: &results, visited: &visited, depth: 0)
         return results
     }
 
+    /// Belt-and-suspenders bound on the name-tree walk: a malformed or malicious
+    /// PDF can contain a cyclic or absurdly deep /Kids graph, which would
+    /// otherwise recurse forever or overflow the stack.
+    private static let maxTreeDepth = 100
+
     // A name-tree node has EITHER a /Names leaf array OR a /Kids array (or both).
     private func walkNameTree(_ node: CGPDFDictionaryRef,
-                              into results: inout [RawAttachment]) {
+                              into results: inout [RawAttachment],
+                              visited: inout Set<UnsafeRawPointer>,
+                              depth: Int) {
+        guard depth < Self.maxTreeDepth else { return }
+        // Skip nodes we've already visited (cycle guard). The node ref is an
+        // opaque pointer; use its address as identity.
+        let nodeID = unsafeBitCast(node, to: UnsafeRawPointer.self)
+        guard visited.insert(nodeID).inserted else { return }
+
         // Leaf: /Names = [key1, filespec1, key2, filespec2, ...]
         var namesArray: CGPDFArrayRef?
         if CGPDFDictionaryGetArray(node, "Names", &namesArray), let arr = namesArray {
@@ -74,9 +88,13 @@ public final class PDFAttachmentExtractor {
             var i = 0
             while i + 1 < count {
                 var filespec: CGPDFDictionaryRef?
-                if CGPDFArrayGetDictionary(arr, i + 1, &filespec), let fs = filespec,
-                   let att = attachment(from: fs) {
-                    results.append(att)
+                if CGPDFArrayGetDictionary(arr, i + 1, &filespec), let fs = filespec {
+                    // The even index is the name-tree key — use it as the
+                    // filename fallback when the filespec lacks /UF and /F.
+                    let key = pdfArrayText(arr, i)
+                    if let att = attachment(from: fs, fallbackName: key) {
+                        results.append(att)
+                    }
                 }
                 i += 2
             }
@@ -87,15 +105,18 @@ public final class PDFAttachmentExtractor {
             for k in 0..<CGPDFArrayGetCount(kidsArr) {
                 var kid: CGPDFDictionaryRef?
                 if CGPDFArrayGetDictionary(kidsArr, k, &kid), let child = kid {
-                    walkNameTree(child, into: &results)
+                    walkNameTree(child, into: &results, visited: &visited, depth: depth + 1)
                 }
             }
         }
     }
 
-    private func attachment(from filespec: CGPDFDictionaryRef) -> RawAttachment? {
-        // Filename: prefer /UF (unicode), fall back to /F.
-        let name = pdfText(filespec, "UF") ?? pdfText(filespec, "F") ?? "Untitled"
+    private func attachment(from filespec: CGPDFDictionaryRef, fallbackName: String?) -> RawAttachment? {
+        // Filename: prefer /UF (unicode), fall back to /F, then the name-tree key.
+        // (In well-formed PDFs /F and /UF name the same file — different encodings
+        // of one filename — so pairing the chosen name with a specific /EF stream
+        // isn't necessary and would only degrade unicode display in the common case.)
+        let name = pdfText(filespec, "UF") ?? pdfText(filespec, "F") ?? fallbackName ?? "Untitled"
 
         // /EF embedded-file dict → /F (or /UF) is the actual file stream.
         var efDict: CGPDFDictionaryRef?
@@ -126,6 +147,13 @@ public final class PDFAttachmentExtractor {
             }
         }
         return RawAttachment(name: name, size: size, modDate: modDate, data: data)
+    }
+
+    private func pdfArrayText(_ arr: CGPDFArrayRef, _ index: Int) -> String? {
+        var strRef: CGPDFStringRef?
+        guard CGPDFArrayGetString(arr, index, &strRef), let s = strRef,
+              let cf = CGPDFStringCopyTextString(s) else { return nil }
+        return cf as String
     }
 
     private func pdfText(_ dict: CGPDFDictionaryRef, _ key: String) -> String? {

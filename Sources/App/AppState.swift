@@ -74,16 +74,25 @@ final class AppState: ObservableObject {
             attachments = try extractor.extractAttachments().map(Attachment.init)
             selection = attachments.first.map { [$0.id] } ?? []
         } catch {
+            // Release the document + its security scope rather than leaving a
+            // half-loaded state alive, then surface the error.
+            reset()
             loadError = "Couldn’t read the embedded files in this PDF."
         }
     }
 
-    private func reset() {
+    /// Balance the active document's security-scoped access. Also called at app
+    /// termination so the scope isn't left open when the process exits.
+    func releaseSecurityScope() {
         if accessingScope, let url = currentURL {
             url.stopAccessingSecurityScopedResource()
         }
         accessingScope = false
         currentURL = nil
+    }
+
+    private func reset() {
+        releaseSecurityScope()
         extractor = nil
         attachments = []
         selection = []
@@ -143,8 +152,7 @@ final class AppState: ObservableObject {
         var written: [URL] = []
         var failures: [String] = []
         for att in attachments {
-            let name = Filename.deduplicated(Filename.sanitized(att.name), taken: &used)
-            let dest = dir.appendingPathComponent(name)
+            let dest = uniqueDestination(for: att.name, in: dir, used: &used)
             do {
                 try att.data.write(to: dest)
                 written.append(dest)
@@ -159,5 +167,26 @@ final class AppState: ObservableObject {
         if !failures.isEmpty {
             loadError = "Couldn’t save \(failures.count) of \(attachments.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
         }
+    }
+
+    /// A destination in `dir` that collides with neither files already on disk
+    /// nor names used earlier in this same save. Case-insensitive to match
+    /// typical macOS volumes; never overwrites an existing file.
+    private func uniqueDestination(for rawName: String, in dir: URL, used: inout Set<String>) -> URL {
+        let sanitized = Filename.sanitized(rawName)
+        let ns = sanitized as NSString
+        let ext = ns.pathExtension
+        let base = ns.deletingPathExtension
+        let fm = FileManager.default
+
+        var candidate = sanitized
+        var i = 1
+        while used.contains(candidate.lowercased())
+                || fm.fileExists(atPath: dir.appendingPathComponent(candidate).path) {
+            i += 1
+            candidate = ext.isEmpty ? "\(base) \(i)" : "\(base) \(i).\(ext)"
+        }
+        used.insert(candidate.lowercased())
+        return dir.appendingPathComponent(candidate)
     }
 }
