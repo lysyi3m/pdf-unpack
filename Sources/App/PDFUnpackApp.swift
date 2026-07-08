@@ -11,6 +11,7 @@ struct PDFUnpackApp: App {
                 .environmentObject(state)
                 .frame(minWidth: 380, minHeight: 420)
         }
+        .defaultSize(width: 800, height: 520)
         .commands {
             CommandGroup(replacing: .newItem) {
                 Button("Open…") { state.presentOpenPanel() }

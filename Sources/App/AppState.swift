@@ -68,6 +68,11 @@ final class AppState: ObservableObject {
         reset()
     }
 
+    /// Unload the current document and return to the empty/drop state.
+    func closeDocument() {
+        reset()
+    }
+
     private func finishLoading() {
         guard let extractor else { return }
         do {

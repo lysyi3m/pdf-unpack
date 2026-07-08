@@ -85,6 +85,17 @@ struct ContentView: View {
 
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
+        if isLoaded {
+            ToolbarItem(placement: .navigation) {
+                Button {
+                    state.closeDocument()
+                } label: {
+                    Label("Close File", systemImage: "chevron.backward")
+                }
+                .help("Close this file and go back")
+            }
+        }
+
         ToolbarItemGroup {
             Button {
                 state.presentOpenPanel()
