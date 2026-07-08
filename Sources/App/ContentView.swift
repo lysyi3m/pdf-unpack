@@ -4,6 +4,12 @@ import PDFUnpackKit
 struct ContentView: View {
     @EnvironmentObject var state: AppState
 
+    /// Temp-file URL of the selected attachment for the native share menu.
+    /// Updated off the render pass (in onChange) so we never do disk I/O inside
+    /// body — that trips SwiftUI's "publishing during view updates" guard and
+    /// corrupts List selection.
+    @State private var shareURL: URL?
+
     var body: some View {
         content
             .frame(minWidth: 380, minHeight: 420)
@@ -51,6 +57,9 @@ struct ContentView: View {
                 )
             }
         }
+        .onAppear { updateShareURL() }
+        .onChange(of: state.selection) { updateShareURL() }
+        .onChange(of: state.attachments.map(\.id)) { updateShareURL() }
         // Finder-style spacebar → Quick Look of the selected file.
         .onKeyPress(.space) {
             state.toggleQuickLook()
@@ -61,17 +70,42 @@ struct ContentView: View {
         .toolbar {
             ToolbarItemGroup {
                 Button {
-                    state.toggleQuickLook()
+                    state.presentOpenPanel()
                 } label: {
-                    Label("Quick Look", systemImage: "eye")
+                    Label("Open…", systemImage: "folder")
                 }
-                .help("Quick Look (Space)")
-                .disabled(state.selectedAttachment == nil)
 
-                Button("Open…") { state.presentOpenPanel() }
-                Button("Save All…") { state.saveAll() }
-                    .disabled(state.attachments.isEmpty)
+                Button {
+                    state.saveAll()
+                } label: {
+                    Label("Save All…", systemImage: "square.and.arrow.down")
+                }
+                .disabled(state.attachments.isEmpty)
+
+                shareButton
             }
+        }
+    }
+
+    // Always-present slot so the toolbar doesn't reflow: a live ShareLink when a
+    // file is selected, otherwise an inert share button.
+    @ViewBuilder
+    private var shareButton: some View {
+        if let url = shareURL {
+            ShareLink(item: url)
+        } else {
+            Button {} label: {
+                Label("Share", systemImage: "square.and.arrow.up")
+            }
+            .disabled(true)
+        }
+    }
+
+    private func updateShareURL() {
+        if let att = state.selectedAttachment {
+            shareURL = try? TempStore.shared.materialize(att)
+        } else {
+            shareURL = nil
         }
     }
 
