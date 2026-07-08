@@ -10,6 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml">
+    <img src="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml/badge.svg" alt="CI">
+  </a>
+</p>
+
+<p align="center">
   <img src="assets/drop-screen.png" alt="Drop a PDF to open it" width="80%">
 </p>
 <p align="center">
