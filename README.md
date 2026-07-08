@@ -1,14 +1,29 @@
-# PDF Unpack
+<p align="center">
+  <img src="assets/icon.png" alt="PDF Unpack" width="128" height="128">
+</p>
 
-A tiny native macOS app for extracting the files embedded inside a PDF — the
-attachments in a PDF portfolio (`/EmbeddedFiles`), including password-protected
-documents. Preview them with Quick Look, save them out, drag them to Finder, or
-share them — no third-party dependencies, Apple frameworks only.
+<h1 align="center">PDF Unpack</h1>
 
 <p align="center">
-  <img src="assets/drop-screen.png" alt="Drop a PDF to open it" width="49%">
-  <img src="assets/file-list.png" alt="Embedded files listed" width="49%">
+  Extract the files embedded inside a PDF — portfolios, attachments, and
+  password-protected documents. Native macOS, no third-party dependencies.
 </p>
+
+<p align="center">
+  <img src="assets/drop-screen.png" alt="Drop a PDF to open it" width="80%">
+</p>
+<p align="center">
+  <img src="assets/file-list.png" alt="Embedded files listed" width="80%">
+</p>
+
+## Download
+
+Download the latest `.dmg` from the
+[**Releases**](https://github.com/lysyi3m/pdf-unpack/releases/latest) page and
+drag **PDF Unpack** into Applications.
+
+> **Note:** the app is not yet notarized. On first launch, approve it under
+> **System Settings ▸ Privacy & Security ▸ Open Anyway**.
 
 ## Features
 
