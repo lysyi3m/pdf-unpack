@@ -19,7 +19,7 @@ struct PDFUnpackApp: App {
             CommandGroup(after: .toolbar) {
                 Button("Quick Look") { state.toggleQuickLook() }
                     .keyboardShortcut("y", modifiers: .command)
-                    .disabled(state.selection == nil)
+                    .disabled(state.selection.isEmpty)
             }
         }
     }

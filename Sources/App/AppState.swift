@@ -12,18 +12,17 @@ final class AppState: ObservableObject {
 
     @Published var fileName: String?
     @Published var needsPassword = false
-    @Published var unlockError = false
     @Published var attachments: [Attachment] = []
-    @Published var selection: Attachment.ID?
+    @Published var selection: Set<Attachment.ID> = []
     @Published var loadError: String?
 
     private var extractor: PDFAttachmentExtractor?
     private var currentURL: URL?
     private var accessingScope = false
 
-    var selectedAttachment: Attachment? {
-        guard let selection else { return nil }
-        return attachments.first { $0.id == selection }
+    /// Selected attachments, in list order.
+    var selectedAttachments: [Attachment] {
+        attachments.filter { selection.contains($0.id) }
     }
 
     // MARK: - Loading
@@ -54,15 +53,15 @@ final class AppState: ObservableObject {
         }
     }
 
-    func submitPassword(_ password: String) {
-        guard let extractor else { return }
-        if extractor.unlock(password: password) {
-            unlockError = false
-            needsPassword = false
-            finishLoading()
-        } else {
-            unlockError = true
-        }
+    /// Attempt to unlock with `password`. Returns false on the wrong password so
+    /// the sheet can show its error without this type publishing during editing.
+    @discardableResult
+    func submitPassword(_ password: String) -> Bool {
+        guard let extractor else { return false }
+        guard extractor.unlock(password: password) else { return false }
+        needsPassword = false
+        finishLoading()
+        return true
     }
 
     func cancelPassword() {
@@ -73,7 +72,7 @@ final class AppState: ObservableObject {
         guard let extractor else { return }
         do {
             attachments = try extractor.extractAttachments().map(Attachment.init)
-            selection = attachments.first?.id
+            selection = attachments.first.map { [$0.id] } ?? []
         } catch {
             loadError = "Couldn’t read the embedded files in this PDF."
         }
@@ -87,9 +86,8 @@ final class AppState: ObservableObject {
         currentURL = nil
         extractor = nil
         attachments = []
-        selection = nil
+        selection = []
         needsPassword = false
-        unlockError = false
         loadError = nil
         fileName = nil
     }
@@ -119,7 +117,7 @@ final class AppState: ObservableObject {
     }
 
     func toggleQuickLook() {
-        QuickLookPresenter.shared.toggle(attachments: attachments, selected: selection)
+        QuickLookPresenter.shared.toggle(all: attachments, selected: selection)
     }
 
     func saveAll() {
@@ -127,24 +125,39 @@ final class AppState: ObservableObject {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
+        panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = "Save All"
         panel.message = "Choose a folder to save all \(attachments.count) files into."
 
-        guard panel.runModal() == .OK, let dir = panel.url else { return }
+        let response = panel.runModal()
+        guard response == .OK else { return }
+        // A directory NSOpenPanel can return a nil `url` when nothing is
+        // explicitly highlighted; fall back to the folder being shown.
+        guard let dir = panel.url ?? panel.directoryURL else {
+            loadError = "Couldn’t determine the destination folder (panel returned no URL)."
+            return
+        }
 
         var used = Set<String>()
-        var failures = 0
+        var written: [URL] = []
+        var failures: [String] = []
         for att in attachments {
             let name = Filename.deduplicated(Filename.sanitized(att.name), taken: &used)
+            let dest = dir.appendingPathComponent(name)
             do {
-                try att.data.write(to: dir.appendingPathComponent(name))
+                try att.data.write(to: dest)
+                written.append(dest)
             } catch {
-                failures += 1
+                failures.append("\(att.name): \(error.localizedDescription)")
             }
         }
-        if failures > 0 {
-            loadError = "Saved \(attachments.count - failures) of \(attachments.count) files; \(failures) failed."
+
+        if !written.isEmpty {
+            NSWorkspace.shared.activateFileViewerSelecting(written)
+        }
+        if !failures.isEmpty {
+            loadError = "Couldn’t save \(failures.count) of \(attachments.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
         }
     }
 }

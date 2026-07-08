@@ -1,14 +1,16 @@
 import SwiftUI
+import AppKit
 import PDFUnpackKit
 
 struct ContentView: View {
     @EnvironmentObject var state: AppState
 
-    /// Temp-file URL of the selected attachment for the native share menu.
-    /// Updated off the render pass (in onChange) so we never do disk I/O inside
-    /// body — that trips SwiftUI's "publishing during view updates" guard and
-    /// corrupts List selection.
-    @State private var shareURL: URL?
+    /// The List binds its selection to view-local @State, not directly to
+    /// AppState.selection. A List writes its selection binding *during* its own
+    /// update pass; if that binding were an ObservableObject's @Published, the
+    /// mid-render publish trips SwiftUI's "publishing during view updates" fault
+    /// on every click. We mirror to/from AppState in onChange (post-update).
+    @State private var selection: Set<Attachment.ID> = []
 
     var body: some View {
         content
@@ -21,7 +23,7 @@ struct ContentView: View {
             .sheet(isPresented: $state.needsPassword) {
                 PasswordSheet()
             }
-            .alert("Couldn’t open PDF", isPresented: loadErrorBinding) {
+            .alert("PDF Unpack", isPresented: loadErrorBinding) {
                 Button("OK", role: .cancel) {}
             } message: {
                 Text(state.loadError ?? "")
@@ -38,11 +40,11 @@ struct ContentView: View {
     }
 
     private var loadedView: some View {
-        List(state.attachments, selection: $state.selection) { att in
+        List(state.attachments, selection: $selection) { att in
             AttachmentRow(attachment: att)
                 .contextMenu {
                     Button("Quick Look") {
-                        state.selection = att.id
+                        if !state.selection.contains(att.id) { state.selection = [att.id] }
                         state.toggleQuickLook()
                     }
                     Button("Save…") { state.save(att) }
@@ -57,10 +59,16 @@ struct ContentView: View {
                 )
             }
         }
-        .onAppear { updateShareURL() }
-        .onChange(of: state.selection) { updateShareURL() }
-        .onChange(of: state.attachments.map(\.id)) { updateShareURL() }
-        // Finder-style spacebar → Quick Look of the selected file.
+        // Keep view-local selection and AppState.selection in sync, both writes
+        // happening in onChange/onAppear (never during a render pass).
+        .onAppear { if selection != state.selection { selection = state.selection } }
+        .onChange(of: selection) {
+            if state.selection != selection { state.selection = selection }
+        }
+        .onChange(of: state.selection) {
+            if selection != state.selection { selection = state.selection }
+        }
+        // Finder-style spacebar → Quick Look of the selected file(s).
         .onKeyPress(.space) {
             state.toggleQuickLook()
             return .handled
@@ -82,31 +90,26 @@ struct ContentView: View {
                 }
                 .disabled(state.attachments.isEmpty)
 
-                shareButton
+                Button {
+                    shareSelection()
+                } label: {
+                    Label("Share", systemImage: "square.and.arrow.up")
+                }
+                .disabled(state.selection.isEmpty)
             }
         }
     }
 
-    // Always-present slot so the toolbar doesn't reflow: a live ShareLink when a
-    // file is selected, otherwise an inert share button.
-    @ViewBuilder
-    private var shareButton: some View {
-        if let url = shareURL {
-            ShareLink(item: url)
-        } else {
-            Button {} label: {
-                Label("Share", systemImage: "square.and.arrow.up")
-            }
-            .disabled(true)
-        }
-    }
-
-    private func updateShareURL() {
-        if let att = state.selectedAttachment {
-            shareURL = try? TempStore.shared.materialize(att)
-        } else {
-            shareURL = nil
-        }
+    /// Materialize the selected files lazily (on click) and present the native
+    /// macOS share menu anchored near the toolbar. Doing this in an action —
+    /// rather than precomputing URLs in onChange/@State — keeps disk I/O and
+    /// state mutation out of the render pass entirely.
+    private func shareSelection() {
+        let urls = state.selectedAttachments.compactMap { try? TempStore.shared.materialize($0) }
+        guard !urls.isEmpty, let view = NSApp.keyWindow?.contentView else { return }
+        let picker = NSSharingServicePicker(items: urls)
+        let anchor = NSRect(x: view.bounds.maxX - 40, y: view.bounds.maxY, width: 1, height: 1)
+        picker.show(relativeTo: anchor, of: view, preferredEdge: .maxY)
     }
 
     private var itemCountText: String {

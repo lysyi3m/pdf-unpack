@@ -3,6 +3,7 @@ import SwiftUI
 struct PasswordSheet: View {
     @EnvironmentObject var state: AppState
     @State private var password = ""
+    @State private var showError = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -15,9 +16,9 @@ struct PasswordSheet: View {
             SecureField("Password", text: $password)
                 .textFieldStyle(.roundedBorder)
                 .onSubmit(submit)
-                .onChange(of: password) { state.unlockError = false }
+                .onChange(of: password) { showError = false }
 
-            if state.unlockError {
+            if showError {
                 Label("Incorrect password. Try again.", systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
                     .font(.caption)
@@ -38,6 +39,8 @@ struct PasswordSheet: View {
 
     private func submit() {
         guard !password.isEmpty else { return }
-        state.submitPassword(password)
+        if !state.submitPassword(password) {
+            showError = true
+        }
     }
 }

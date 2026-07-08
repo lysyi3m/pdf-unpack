@@ -17,9 +17,10 @@ final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPan
 
     private var items: [Attachment] = []
 
-    /// Open Quick Look on `selected` (or the first item), or close it if already
-    /// showing — matching the Finder spacebar toggle.
-    func toggle(attachments: [Attachment], selected: Attachment.ID?) {
+    /// Open Quick Look, or close it if already showing (Finder spacebar toggle).
+    /// With 2+ files selected, preview just that selection; with 0–1 selected,
+    /// preview the whole list so the arrow keys browse everything.
+    func toggle(all attachments: [Attachment], selected: Set<Attachment.ID>) {
         guard !attachments.isEmpty else { return }
 
         if QLPreviewPanel.sharedPreviewPanelExists(),
@@ -29,8 +30,18 @@ final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPan
         }
 
         guard let panel = QLPreviewPanel.shared() else { return }
-        items = attachments
-        let startIndex = attachments.firstIndex { $0.id == selected } ?? 0
+
+        let selectedItems = attachments.filter { selected.contains($0.id) }
+        let startIndex: Int
+        if selectedItems.count >= 2 {
+            items = selectedItems
+            startIndex = 0
+        } else {
+            items = attachments
+            startIndex = selectedItems.first.flatMap { sel in
+                attachments.firstIndex { $0.id == sel.id }
+            } ?? 0
+        }
 
         panel.dataSource = self
         panel.delegate = self

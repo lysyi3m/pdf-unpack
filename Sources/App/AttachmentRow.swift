@@ -20,13 +20,10 @@ struct AttachmentRow: View {
             }
         }
         .padding(.vertical, 2)
-        // Materialize lazily at drag start, then hand Finder a real file.
-        .onDrag {
-            guard let url = try? TempStore.shared.materialize(attachment) else {
-                return NSItemProvider()
-            }
-            return NSItemProvider(contentsOf: url) ?? NSItemProvider()
-        }
+        // Drag a row straight out to Finder/Desktop. .draggable is reliable
+        // inside a selectable List (unlike .onDrag); the file is materialized
+        // lazily via the Transferable conformance.
+        .draggable(attachment)
     }
 
     private var icon: NSImage {
