@@ -12,9 +12,17 @@ struct ContentView: View {
     /// on every click. We mirror to/from AppState in onChange (post-update).
     @State private var selection: Set<Attachment.ID> = []
 
+    private var isLoaded: Bool { state.fileName != nil && !state.needsPassword }
+
     var body: some View {
         content
             .frame(minWidth: 380, minHeight: 420)
+            // Title + subtitle + toolbar live at this level (not inside the
+            // loaded view) so the toolbar keeps the same height/style in both
+            // the empty and loaded states instead of collapsing to a thin bar.
+            .navigationTitle(state.fileName ?? "PDF Unpack")
+            .navigationSubtitle(windowSubtitle)
+            .toolbar { toolbarContent }
             .dropDestination(for: URL.self) { urls, _ in
                 guard let pdf = urls.first(where: { $0.pathExtension.lowercased() == "pdf" }) else { return false }
                 state.load(url: pdf)
@@ -32,7 +40,7 @@ struct ContentView: View {
 
     @ViewBuilder
     private var content: some View {
-        if state.fileName != nil && !state.needsPassword {
+        if isLoaded {
             loadedView
         } else {
             DropView()
@@ -73,22 +81,23 @@ struct ContentView: View {
             state.toggleQuickLook()
             return .handled
         }
-        .navigationTitle(state.fileName ?? "PDF Unpack")
-        .navigationSubtitle(itemCountText)
-        .toolbar {
-            ToolbarItemGroup {
-                Button {
-                    state.presentOpenPanel()
-                } label: {
-                    Label("Open…", systemImage: "folder")
-                }
+    }
 
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItemGroup {
+            Button {
+                state.presentOpenPanel()
+            } label: {
+                Label("Open…", systemImage: "folder")
+            }
+
+            if isLoaded && !state.attachments.isEmpty {
                 Button {
                     state.saveAll()
                 } label: {
                     Label("Save All…", systemImage: "square.and.arrow.down")
                 }
-                .disabled(state.attachments.isEmpty)
 
                 Button {
                     shareSelection()
@@ -112,9 +121,18 @@ struct ContentView: View {
         picker.show(relativeTo: anchor, of: view, preferredEdge: .maxY)
     }
 
+    private var windowSubtitle: String {
+        if state.needsPassword { return "Locked" }
+        if isLoaded { return itemCountText }
+        return "No file open"
+    }
+
     private var itemCountText: String {
-        let n = state.attachments.count
-        return n == 1 ? "1 file" : "\(n) files"
+        switch state.attachments.count {
+        case 0: return "No files"
+        case 1: return "1 file"
+        case let n: return "\(n) files"
+        }
     }
 
     private var loadErrorBinding: Binding<Bool> {
