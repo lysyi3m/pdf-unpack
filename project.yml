@@ -46,7 +46,7 @@ targets:
         CFBundleDisplayName: PDF Unpack
         CFBundleName: PDF Unpack
         LSMinimumSystemVersion: "15.0"
-        NSHumanReadableCopyright: ""
+        NSHumanReadableCopyright: "© 2026 Emil Kashkevich · MIT License"
         # Finder "Open With ▸ PDF Unpack" for PDFs
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF Document

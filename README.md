@@ -16,9 +16,6 @@
 </p>
 
 <p align="center">
-  <img src="assets/drop-screen.png" alt="Drop a PDF to open it" width="80%">
-</p>
-<p align="center">
   <img src="assets/file-list.png" alt="Embedded files listed" width="80%">
 </p>
 
