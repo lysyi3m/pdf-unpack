@@ -45,6 +45,8 @@ targets:
       properties:
         CFBundleDisplayName: PDF Unpack
         CFBundleName: PDF Unpack
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSMinimumSystemVersion: "15.0"
         NSHumanReadableCopyright: "© 2026 Emil Kashkevich · MIT License"
         # Finder "Open With ▸ PDF Unpack" for PDFs
