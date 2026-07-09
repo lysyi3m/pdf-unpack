@@ -84,9 +84,11 @@ make test
 
 ## Scope
 
-v1 handles document-level `/EmbeddedFiles` attachments. Page-level
-`/FileAttachment` annotations and PDF 2.0 `/AF` associated files are out of
-scope; the app shows a clean empty state when a PDF has no embedded files.
+PDF Unpack finds embedded files wherever a PDF keeps them: document-level
+`/EmbeddedFiles` (portfolios / attachments), page `/FileAttachment` annotations,
+and PDF 2.0 associated files (`/AF` — including e-invoices such as
+ZUGFeRD / Factur-X and PDF/A-3 archives). A file referenced from more than one
+place is listed once. When a PDF has none, it shows a clean empty state.
 
 ## License
 

@@ -63,7 +63,7 @@ struct ContentView: View {
                 ContentUnavailableView(
                     "No Embedded Files",
                     systemImage: "tray",
-                    description: Text("This PDF has no document-level attachments. (Page-annotation and /AF files aren’t supported in v1.)")
+                    description: Text("This PDF doesn’t contain any embedded files.")
                 )
             }
         }

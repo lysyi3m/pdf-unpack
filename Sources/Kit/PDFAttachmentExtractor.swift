@@ -46,23 +46,117 @@ public final class PDFAttachmentExtractor {
         return password.withCString { doc.unlockWithPassword($0) }
     }
 
-    /// Walks catalog → /Names → /EmbeddedFiles (a PDF *name tree*).
+    /// Collects every embedded file, from all three places a PDF can hide one:
+    ///   1. document-level `/Names → /EmbeddedFiles` (portfolios / attachments),
+    ///   2. page `/FileAttachment` annotations,
+    ///   3. PDF 2.0 associated files (`/AF`) on the catalog and pages
+    ///      (how e-invoices — ZUGFeRD/Factur-X — and PDF/A-3 embed data).
+    /// A file referenced from more than one place (common in e-invoices) is
+    /// returned once: first cheaply by file-spec object identity, then by a
+    /// content fallback (identical name + bytes) in case CGPDF ever hands back
+    /// distinct pointers for the same underlying object.
     public func extractAttachments() throws -> [RawAttachment] {
         guard doc.isUnlocked else { throw PDFError.notUnlocked }
         guard let catalog = doc.catalog else { return [] }
 
-        var namesDict: CGPDFDictionaryRef?
-        guard CGPDFDictionaryGetDictionary(catalog, "Names", &namesDict),
-              let names = namesDict else { return [] }
-
-        var efNode: CGPDFDictionaryRef?
-        guard CGPDFDictionaryGetDictionary(names, "EmbeddedFiles", &efNode),
-              let root = efNode else { return [] }
-
         var results: [RawAttachment] = []
-        var visited = Set<UnsafeRawPointer>()
-        walkNameTree(root, into: &results, visited: &visited, depth: 0)
-        return results
+        var visitedNodes = Set<UnsafeRawPointer>()   // name-tree cycle guard
+        var seenSpecs = Set<UnsafeRawPointer>()       // file-spec de-dup
+
+        // 1. Document-level /Names → /EmbeddedFiles name tree.
+        var namesDict: CGPDFDictionaryRef?
+        if CGPDFDictionaryGetDictionary(catalog, "Names", &namesDict), let names = namesDict {
+            var efNode: CGPDFDictionaryRef?
+            if CGPDFDictionaryGetDictionary(names, "EmbeddedFiles", &efNode), let root = efNode {
+                walkNameTree(root, visited: &visitedNodes, seen: &seenSpecs, into: &results)
+            }
+        }
+
+        // 2. Catalog-level associated files (/AF).
+        collectAssociatedFiles(from: catalog, seen: &seenSpecs, into: &results)
+
+        // 3. Page-level: /FileAttachment annotations and page /AF.
+        let pageCount = doc.numberOfPages
+        if pageCount > 0 {
+            for i in 1...pageCount {
+                guard let page = doc.page(at: i),
+                      let pageDict = page.dictionary else { continue }
+                collectPageAnnotations(from: pageDict, seen: &seenSpecs, into: &results)
+                collectAssociatedFiles(from: pageDict, seen: &seenSpecs, into: &results)
+            }
+        }
+
+        return deduplicatedByContent(results)
+    }
+
+    /// Drop entries with the same name AND bytes as an earlier one — the content
+    /// safety net behind the object-pointer dedup. Distinct files that merely
+    /// share a name (or a size) are kept, since the bytes differ.
+    ///
+    /// Names are almost always unique, so we compare bytes only among entries
+    /// that actually share a name — a uniquely named file never gets its payload
+    /// hashed or compared.
+    private func deduplicatedByContent(_ attachments: [RawAttachment]) -> [RawAttachment] {
+        var payloadsByName: [String: [Data]] = [:]
+        var result: [RawAttachment] = []
+        result.reserveCapacity(attachments.count)
+        for att in attachments {
+            if let seen = payloadsByName[att.name] {
+                if seen.contains(att.data) { continue }   // same name + bytes → duplicate
+                payloadsByName[att.name]?.append(att.data)
+            } else {
+                payloadsByName[att.name] = [att.data]
+            }
+            result.append(att)
+        }
+        return result
+    }
+
+    /// Extract a file spec once (deduped by object identity) and append it.
+    private func addAttachment(from filespec: CGPDFDictionaryRef,
+                               fallbackName: String?,
+                               seen: inout Set<UnsafeRawPointer>,
+                               into results: inout [RawAttachment]) {
+        let id = unsafeBitCast(filespec, to: UnsafeRawPointer.self)
+        guard seen.insert(id).inserted else { return }
+        if let att = attachment(from: filespec, fallbackName: fallbackName) {
+            results.append(att)
+        }
+    }
+
+    /// A file-spec array under `/AF` on the given dictionary (catalog or page).
+    private func collectAssociatedFiles(from dict: CGPDFDictionaryRef,
+                                        seen: inout Set<UnsafeRawPointer>,
+                                        into results: inout [RawAttachment]) {
+        var af: CGPDFArrayRef?
+        guard CGPDFDictionaryGetArray(dict, "AF", &af), let arr = af else { return }
+        for k in 0..<CGPDFArrayGetCount(arr) {
+            var filespec: CGPDFDictionaryRef?
+            if CGPDFArrayGetDictionary(arr, k, &filespec), let fs = filespec {
+                addAttachment(from: fs, fallbackName: nil, seen: &seen, into: &results)
+            }
+        }
+    }
+
+    /// `/FileAttachment` annotations on a page → their `/FS` file specs.
+    private func collectPageAnnotations(from pageDict: CGPDFDictionaryRef,
+                                        seen: inout Set<UnsafeRawPointer>,
+                                        into results: inout [RawAttachment]) {
+        var annots: CGPDFArrayRef?
+        guard CGPDFDictionaryGetArray(pageDict, "Annots", &annots), let arr = annots else { return }
+        for k in 0..<CGPDFArrayGetCount(arr) {
+            var annot: CGPDFDictionaryRef?
+            guard CGPDFArrayGetDictionary(arr, k, &annot), let a = annot else { continue }
+
+            var subtype: UnsafePointer<Int8>?
+            guard CGPDFDictionaryGetName(a, "Subtype", &subtype), let st = subtype,
+                  String(cString: st) == "FileAttachment" else { continue }
+
+            var filespec: CGPDFDictionaryRef?
+            if CGPDFDictionaryGetDictionary(a, "FS", &filespec), let fs = filespec {
+                addAttachment(from: fs, fallbackName: nil, seen: &seen, into: &results)
+            }
+        }
     }
 
     /// Belt-and-suspenders bound on the name-tree walk: a malformed or malicious
@@ -72,9 +166,10 @@ public final class PDFAttachmentExtractor {
 
     // A name-tree node has EITHER a /Names leaf array OR a /Kids array (or both).
     private func walkNameTree(_ node: CGPDFDictionaryRef,
-                              into results: inout [RawAttachment],
                               visited: inout Set<UnsafeRawPointer>,
-                              depth: Int) {
+                              seen: inout Set<UnsafeRawPointer>,
+                              into results: inout [RawAttachment],
+                              depth: Int = 0) {
         guard depth < Self.maxTreeDepth else { return }
         // Skip nodes we've already visited (cycle guard). The node ref is an
         // opaque pointer; use its address as identity.
@@ -92,9 +187,7 @@ public final class PDFAttachmentExtractor {
                     // The even index is the name-tree key — use it as the
                     // filename fallback when the filespec lacks /UF and /F.
                     let key = pdfArrayText(arr, i)
-                    if let att = attachment(from: fs, fallbackName: key) {
-                        results.append(att)
-                    }
+                    addAttachment(from: fs, fallbackName: key, seen: &seen, into: &results)
                 }
                 i += 2
             }
@@ -105,7 +198,7 @@ public final class PDFAttachmentExtractor {
             for k in 0..<CGPDFArrayGetCount(kidsArr) {
                 var kid: CGPDFDictionaryRef?
                 if CGPDFArrayGetDictionary(kidsArr, k, &kid), let child = kid {
-                    walkNameTree(child, into: &results, visited: &visited, depth: depth + 1)
+                    walkNameTree(child, visited: &visited, seen: &seen, into: &results, depth: depth + 1)
                 }
             }
         }

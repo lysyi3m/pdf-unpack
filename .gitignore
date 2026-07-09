@@ -20,11 +20,14 @@ Config/*.entitlements
 .build/
 .swiftpm/
 
-# ── Python (test-fixture generator) ──
+# ── Python ──
 __pycache__/
 *.pyc
 .venv/
 venv/
+
+# ── Local-only tooling (not committed) ──
+/tools/
 
 # ── Sensitive / real PDFs — NEVER commit ──
 # The synthetic fixture (fixtures/sample-protected.pdf) is safe and IS committed.
