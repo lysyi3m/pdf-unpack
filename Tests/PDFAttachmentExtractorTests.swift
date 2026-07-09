@@ -16,12 +16,12 @@ final class PDFAttachmentExtractorTests: XCTestCase {
             .appendingPathComponent("fixtures")
             .appendingPathComponent("sample-protected.pdf")
         guard FileManager.default.fileExists(atPath: fixture.path) else {
-            throw XCTSkip("Fixture missing at \(fixture.path). Run: python3 tools/make_fixture.py")
+            throw XCTSkip("Fixture missing at \(fixture.path)")
         }
         return fixture
     }
 
-    // Expected contents, kept in sync with tools/make_fixture.py.
+    // Expected contents, kept in sync with the fixture.
     static let expectedTxt = Data("Hello, PDF Unpack!\n".utf8)
     static let expectedCsv = Data("name,value\nalpha,1\nbeta,2\n".utf8)
     static let expectedPng = Data([
@@ -94,7 +94,7 @@ final class PDFAttachmentExtractorTests: XCTestCase {
     }
 
     func testModDateParsed() throws {
-        // make_fixture.py stamps every attachment with D:20240115103000Z.
+        // Every attachment in the fixture is stamped with D:20240115103000Z.
         for att in try unlockedExtractor().extractAttachments() {
             let date = try XCTUnwrap(att.modDate, "missing modDate for \(att.name)")
             var cal = Calendar(identifier: .gregorian)
