@@ -46,15 +46,16 @@ drag **PDF Unpack** into Applications.
 
 ```bash
 brew install xcodegen        # one-time
+cp .env.example .env         # one-time; set DEVELOPMENT_TEAM to your Apple Team ID
 make generate                # regenerate "PDF Unpack.xcodeproj" from project.yml
-open "PDF Unpack.xcodeproj"  # select a signing team, then press ⌘R
+open "PDF Unpack.xcodeproj"  # then press ⌘R
 ```
 
-Common tasks are wrapped in a `Makefile` — run `make` to list them
-(`generate`, `test`, `build`, `dmg`, `fixtures`, `clean`).
+Run `make` to list the other tasks (`test`, `build`, `dmg`, `fixtures`, `clean`).
 
-The Xcode project is generated from [`project.yml`](project.yml) — it is
-gitignored and must not be hand-edited.
+`PDF Unpack.xcodeproj` is generated from [`project.yml`](project.yml); it is gitignored and must not
+be hand-edited. `make generate` projects `DEVELOPMENT_TEAM` from `.env` into
+`Config/Local.xcconfig`, so Xcode and `xcodebuild` sign with the same team.
 
 ## How it works
 

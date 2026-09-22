@@ -1,0 +1,6 @@
+// Shared build settings.
+//
+// Machine-local values (DEVELOPMENT_TEAM) live in .env and are projected into
+// Config/Local.xcconfig by `make generate`. The include is optional, so a fresh clone builds
+// without one — only signing needs it.
+#include? "Local.xcconfig"
