@@ -6,8 +6,11 @@ struct PDFUnpackApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var state = AppState.shared
 
+    // One window, one document: AppState holds a single document, and Open With, Services,
+    // drag-and-drop and File ▸ Open all load into it. A WindowGroup would open a new window
+    // for every file Finder hands over, each rendering the same shared state.
     var body: some Scene {
-        WindowGroup {
+        Window("PDF Unpack", id: "main") {
             ContentView()
                 .environmentObject(state)
                 .frame(minWidth: 380, minHeight: 420)

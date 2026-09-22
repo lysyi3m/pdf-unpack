@@ -70,6 +70,10 @@ whole.
 5. **Saving never overwrites.** Save All picks a free name rather than replacing an existing
    file.
 6. Prefer `NSOpenPanel` / `NSSavePanel` over `.fileExporter` for save flows.
+7. **One window, one document.** The app is a single `Window` scene over the shared
+   `AppState`, and every entry point — Open With, Services, drag-and-drop, File ▸ Open — loads
+   into it. Do not switch to `WindowGroup`: SwiftUI then opens a new window for each file Finder
+   hands over, and every window renders the same document.
 
 ## Secrets
 
