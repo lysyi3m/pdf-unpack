@@ -111,6 +111,7 @@ def make_mixed() -> Path:
 
 
 def main() -> None:
+    FIXTURES.mkdir(exist_ok=True)
     for out in (make_protected(), make_mixed()):
         print(f"wrote {out.relative_to(REPO)}")
 
