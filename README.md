@@ -40,7 +40,7 @@ drag **PDF Unpack** into Applications.
 ## Requirements
 
 - macOS 26 or later
-- Xcode 26 or later, to build
+- Xcode 26 or later and XcodeGen, to build
 
 ## Build & run
 
