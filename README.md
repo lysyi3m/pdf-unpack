@@ -72,6 +72,7 @@ isolated in the UI-free, unit-tested `PDFUnpackKit` framework.
 | `Sources/Kit/` | `PDFUnpackKit` — UI-free core: CGPDF extractor, PDF date parsing, models, filename hygiene |
 | `Sources/App/` | The SwiftUI app (imports `PDFUnpackKit`) |
 | `Tests/` | Unit tests (`@testable import PDFUnpackKit`) |
+| `Config/` | `Base.xcconfig`; `make generate` writes the rest (git-ignored) |
 | `fixtures/` | Synthetic test PDFs — see [`fixtures/README.md`](fixtures/README.md) |
 | `tools/` | `make_fixtures.py`, which generates `fixtures/` (build tooling, not shipped) |
 

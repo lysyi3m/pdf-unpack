@@ -71,8 +71,9 @@ targets:
     entitlements:
       path: Config/PDFUnpack.entitlements
       properties:
-        # Off for local use: sandboxed Quick Look helpers can't read our temp
-        # files. Re-enable (+ files.user-selected.read-write) for notarization.
+        # Off. The Mac App Store requires it on, together with
+        # files.user-selected.read-write for the save panels. See AGENTS.md for what a
+        # sandboxed build was tested to do.
         com.apple.security.app-sandbox: false
 
   PDFUnpackTests:
