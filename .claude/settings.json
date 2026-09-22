@@ -2,13 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(make)",
-      "Bash(make help:*)",
-      "Bash(make generate:*)",
-      "Bash(make test:*)",
-      "Bash(make build:*)",
-      "Bash(xcodegen generate:*)",
-      "Bash(/usr/libexec/PlistBuddy -c \"Print*)",
-      "Bash(sips -g *)"
+      "Bash(make help)",
+      "Bash(make generate)",
+      "Bash(make test)",
+      "Bash(make build)",
+      "Bash(xcodegen generate)"
     ]
   }
 }
