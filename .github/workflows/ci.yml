@@ -12,10 +12,11 @@ concurrency:
 jobs:
   test:
     name: Build & Test
-    runs-on: macos-26
+    # Preview image, to match the Xcode used locally. Beta images carry no Actions SLA.
+    runs-on: xcode-27
     env:
-      # The image's default Xcode moves over time; pin it so CI builds with a known toolchain.
-      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
+      # A version path, not the image default, so CI builds with a known toolchain.
+      DEVELOPER_DIR: /Applications/Xcode_27.0.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
 
