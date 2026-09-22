@@ -8,6 +8,7 @@ APP     := build/Build/Products/Release/$(SCHEME).app
 DMG     := $(SCHEME).dmg
 VENV    := tools/.venv
 LOCAL_XCCONFIG := Config/Local.xcconfig
+TEAM_SETTING   := ^DEVELOPMENT_TEAM = [A-Z0-9]{10}$$
 
 .DEFAULT_GOAL := help
 .PHONY: help generate local-config test build dmg fixtures clean
@@ -20,18 +21,18 @@ generate: local-config ## Regenerate the Xcode project from project.yml
 
 # Xcode cannot read .env, so the machine-local settings it needs are projected into an xcconfig
 # that Config/Base.xcconfig includes. This keeps .env the single place to set DEVELOPMENT_TEAM,
-# for both `xcodebuild` and a plain Cmd-R in Xcode. An empty value counts as unset.
+# for both `xcodebuild` and a plain Cmd-R in Xcode. Only a 10-character Team ID is projected;
+# quotes and a trailing comment are dropped, and anything else counts as unset.
 local-config: ## Project machine-local settings from .env into Config/Local.xcconfig
 	@mkdir -p Config
 	@printf '// Generated from .env by `make generate`. Do not edit, do not commit.\n' > $(LOCAL_XCCONFIG)
 	@if [ -f .env ]; then \
-		grep -E '^[[:space:]]*DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*[A-Z0-9]' .env \
-			| sed -E 's/^[[:space:]]*DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*/DEVELOPMENT_TEAM = /' \
-			>> $(LOCAL_XCCONFIG) || true; \
+		sed -nE "s/^[[:space:]]*DEVELOPMENT_TEAM[[:space:]]*=[[:space:]]*[\"']?([A-Z0-9]{10})[\"']?([[:space:]]*(#.*)?)?$$/DEVELOPMENT_TEAM = \1/p" .env \
+			>> $(LOCAL_XCCONFIG); \
 	fi
-	@grep -q '^DEVELOPMENT_TEAM = ' $(LOCAL_XCCONFIG) \
+	@grep -qE '$(TEAM_SETTING)' $(LOCAL_XCCONFIG) \
 		&& echo "✓ DEVELOPMENT_TEAM from .env" \
-		|| echo "• no DEVELOPMENT_TEAM in .env — signing will need a team picked in Xcode"
+		|| echo "• no valid DEVELOPMENT_TEAM in .env (a 10-character Team ID) — signing will need a team picked in Xcode"
 
 test: generate ## Run the unit tests
 	xcodebuild test -project "$(PROJECT)" -scheme "$(SCHEME)" \
