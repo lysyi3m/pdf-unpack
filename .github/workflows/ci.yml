@@ -12,7 +12,10 @@ concurrency:
 jobs:
   test:
     name: Build & Test
-    runs-on: macos-15
+    runs-on: macos-26
+    env:
+      # The image's default Xcode moves over time; pin it so CI builds with a known toolchain.
+      DEVELOPER_DIR: /Applications/Xcode_26.6.app/Contents/Developer
     steps:
       - uses: actions/checkout@v4
 
@@ -22,5 +25,10 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
-      - name: Build & test
+      - name: Test
         run: make test
+
+      # `make test` compiles only the frameworks and test bundles; the app target is not in the
+      # test action, so a broken app would otherwise pass.
+      - name: Build
+        run: make build
