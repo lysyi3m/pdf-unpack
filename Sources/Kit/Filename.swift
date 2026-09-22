@@ -1,6 +1,6 @@
 import Foundation
 
-/// Filename hygiene for writing attachments to disk. PDF embedded-file names can
+/// Filename hygiene for writing embedded files to disk. PDF embedded-file names can
 /// contain path separators, leading dots, or be empty — none safe to write as-is.
 /// Display keeps the original name; only disk paths go through here.
 public enum Filename {

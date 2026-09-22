@@ -2,8 +2,8 @@ import SwiftUI
 import UniformTypeIdentifiers
 import PDFUnpackKit
 
-struct AttachmentRow: View {
-    let attachment: Attachment
+struct EmbeddedFileRow: View {
+    let embeddedFile: EmbeddedFile
 
     var body: some View {
         HStack(spacing: 10) {
@@ -11,7 +11,7 @@ struct AttachmentRow: View {
                 .resizable()
                 .frame(width: 24, height: 24)
             VStack(alignment: .leading, spacing: 2) {
-                Text(attachment.name)
+                Text(embeddedFile.name)
                     .lineLimit(1)
                     .truncationMode(.middle)
                 Text(subtitle)
@@ -23,18 +23,18 @@ struct AttachmentRow: View {
         // Drag a row straight out to Finder/Desktop. .draggable is reliable
         // inside a selectable List (unlike .onDrag); the file is materialized
         // lazily via the Transferable conformance.
-        .draggable(attachment)
+        .draggable(embeddedFile)
     }
 
     private var icon: NSImage {
-        let ext = (attachment.name as NSString).pathExtension
+        let ext = (embeddedFile.name as NSString).pathExtension
         let type = UTType(filenameExtension: ext) ?? .data
         return NSWorkspace.shared.icon(for: type)
     }
 
     private var subtitle: String {
-        let size = ByteCountFormatter.string(fromByteCount: Int64(attachment.size), countStyle: .file)
-        guard let date = attachment.modDate else { return size }
+        let size = ByteCountFormatter.string(fromByteCount: Int64(embeddedFile.size), countStyle: .file)
+        guard let date = embeddedFile.modDate else { return size }
         return "\(size) · \(date.formatted(date: .abbreviated, time: .shortened))"
     }
 }

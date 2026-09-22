@@ -1,7 +1,7 @@
 import Foundation
 import PDFUnpackKit
 
-/// Writes attachment bytes to a per-session temp directory on demand and caches
+/// Writes embedded-file bytes to a per-session temp directory on demand and caches
 /// the resulting URLs. Quick Look and drag-out both need a real file on disk;
 /// this defers that write until first use so large portfolios don't hit disk
 /// eagerly. The session directory is removed on app termination.
@@ -18,22 +18,22 @@ final class TempStore {
             .appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
     }
 
-    /// Materialize `att` to disk (once) and return its file URL.
-    func materialize(_ att: Attachment) throws -> URL {
+    /// Materialize `file` to disk (once) and return its file URL.
+    func materialize(_ file: EmbeddedFile) throws -> URL {
         lock.lock()
         defer { lock.unlock() }
 
-        if let url = cache[att.id] { return url }
+        if let url = cache[file.id] { return url }
 
         try FileManager.default.createDirectory(at: sessionDir, withIntermediateDirectories: true)
         // Reserve the deduped name against a copy and only commit it if the
         // write succeeds, so a failed write doesn't burn a name for the session.
         var reserved = usedNames
-        let filename = Filename.deduplicated(Filename.sanitized(att.name), taken: &reserved)
+        let filename = Filename.deduplicated(Filename.sanitized(file.name), taken: &reserved)
         let url = sessionDir.appendingPathComponent(filename)
-        try att.data.write(to: url)
+        try file.data.write(to: url)
         usedNames = reserved
-        cache[att.id] = url
+        cache[file.id] = url
         return url
     }
 

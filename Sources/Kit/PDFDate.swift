@@ -1,8 +1,8 @@
 import Foundation
 
 /// Parses PDF date strings of the form `D:YYYYMMDDHHmmSSZ` or
-/// `D:YYYYMMDDHHmmSS+HH'mm'` (PDF spec §7.9.4). Only the year is required;
-/// every finer component is optional and defaults per the spec. Returns nil on
+/// `D:YYYYMMDDHHmmSS+HH'mm'` (ISO 32000-1 §7.9.4). Only the year is required;
+/// every finer component is optional and defaults per the standard. Returns nil on
 /// malformed input rather than guessing.
 public enum PDFDate {
 

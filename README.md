@@ -5,7 +5,7 @@
 <h1 align="center">PDF Unpack</h1>
 
 <p align="center">
-  Extract the files embedded inside a PDF — portfolios, attachments, and
+  Extract the files embedded inside a PDF — portfolios, e-invoices, and
   password-protected documents. Native macOS, no third-party dependencies.
 </p>
 
@@ -85,7 +85,7 @@ make test
 ## Scope
 
 PDF Unpack finds embedded files wherever a PDF keeps them: document-level
-`/EmbeddedFiles` (portfolios / attachments), page `/FileAttachment` annotations,
+`/EmbeddedFiles` (portfolios), page `/FileAttachment` annotations,
 and PDF 2.0 associated files (`/AF` — including e-invoices such as
 ZUGFeRD / Factur-X and PDF/A-3 archives). A file referenced from more than one
 place is listed once. When a PDF has none, it shows a clean empty state.
