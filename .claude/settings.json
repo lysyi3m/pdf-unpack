@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make:*)",
+      "Bash(xcodegen:*)",
+      "Bash(xcodebuild:*)",
+      "Bash(/usr/libexec/PlistBuddy -c \"Print*)",
+      "Bash(sips -g *)"
+    ]
+  }
+}
