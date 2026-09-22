@@ -8,6 +8,8 @@ inside it, with Quick Look preview, save, drag-out and Finder integration.
 Shared by `recogs`, `time-strip` and `pdf-unpack`. Where a repo-specific section below
 contradicts a rule here, the repo-specific rule wins — and say so when you notice it.
 
+- **One toolchain.** macOS 26+ (iOS 26+ where there is an iOS target), Swift 6 language mode,
+  Xcode 27. CI pins the same Xcode, so code that builds locally must build there too.
 - **XcodeGen owns the project.** `project.yml` is the source of truth. Never hand-edit the
   generated `.xcodeproj`. Never commit it, `Config/*.plist` or `Config/*.entitlements`. Run
   `make generate` after every `project.yml` change.
@@ -32,7 +34,7 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
 
 ## Stack
 
-- SwiftUI app lifecycle with AppKit where needed, macOS 26+, Swift 6 language mode. No iOS target.
+- SwiftUI app lifecycle with AppKit where needed. No iOS target.
 - Apple frameworks only: SwiftUI, AppKit, CoreGraphics (CGPDF), Quartz/QuickLookUI,
   UniformTypeIdentifiers, Foundation.
 - Two product targets: `PDFUnpackKit` (`Sources/Kit`, UI-free core) and `PDF Unpack`
