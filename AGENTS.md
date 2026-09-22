@@ -84,3 +84,9 @@ and `*.private.pdf` are git-ignored — keep it that way.
   *Open With*, `NSServices` gives the right-click *Open in PDF Unpack* item.
 - The GUI cannot be exercised headlessly. Verify what unit tests can reach, then hand over a
   manual checklist.
+- **Fixtures are generated.** `make fixtures` rebuilds `fixtures/` from
+  `tools/make_fixtures.py`. The names, bytes and dates it declares are asserted by the tests;
+  change both together. Commit `sample-protected.pdf` only when its contents change — its
+  encryption salt makes every regeneration a binary diff. See `fixtures/README.md`.
+- A missing fixture fails the tests on purpose. Never turn it back into a skip: a skip lets CI
+  pass without running the extractor.

@@ -1,0 +1,2 @@
+# Build tooling for tools/make_fixtures.py; never shipped. `make fixtures` installs this.
+pikepdf==10.9.1
