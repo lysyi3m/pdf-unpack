@@ -1,27 +1,16 @@
 import XCTest
 @testable import PDFUnpackKit
 
+/// Unlock, extraction, byte round-trip and date parsing. Fixture: fixtures/sample-protected.pdf.
 final class EmbeddedFileExtractorTests: XCTestCase {
 
-    static let password = "test123"
+    static let password = Fixtures.protectedPassword
 
-    /// Locate fixtures/sample-protected.pdf by walking up from this source file
-    /// to the repo root. The test bundle is NOT app-hosted, so the runner is
-    /// unsandboxed and can read straight from the repo.
-    static func fixtureURL(file: StaticString = #filePath) throws -> URL {
-        let testFile = URL(fileURLWithPath: "\(file)")
-        // .../pdf-unpack/Tests/EmbeddedFileExtractorTests.swift → repo root is two up.
-        let repoRoot = testFile.deletingLastPathComponent().deletingLastPathComponent()
-        let fixture = repoRoot
-            .appendingPathComponent("fixtures")
-            .appendingPathComponent("sample-protected.pdf")
-        guard FileManager.default.fileExists(atPath: fixture.path) else {
-            throw XCTSkip("Fixture missing at \(fixture.path)")
-        }
-        return fixture
+    static func fixtureURL() throws -> URL {
+        try Fixtures.url("sample-protected.pdf")
     }
 
-    // Expected contents, kept in sync with the fixture.
+    // Expected contents. Kept in sync with PROTECTED_FILES in tools/make_fixtures.py.
     static let expectedTxt = Data("Hello, PDF Unpack!\n".utf8)
     static let expectedCsv = Data("name,value\nalpha,1\nbeta,2\n".utf8)
     static let expectedPng = Data([

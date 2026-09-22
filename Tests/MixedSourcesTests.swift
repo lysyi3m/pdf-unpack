@@ -8,19 +8,11 @@ import XCTest
 /// Fixture: fixtures/sample-mixed.pdf.
 final class MixedSourcesTests: XCTestCase {
 
-    static func fixtureURL(file: StaticString = #filePath) throws -> URL {
-        let testFile = URL(fileURLWithPath: "\(file)")
-        let repoRoot = testFile.deletingLastPathComponent().deletingLastPathComponent()
-        let fixture = repoRoot
-            .appendingPathComponent("fixtures")
-            .appendingPathComponent("sample-mixed.pdf")
-        guard FileManager.default.fileExists(atPath: fixture.path) else {
-            throw XCTSkip("Fixture missing at \(fixture.path)")
-        }
-        return fixture
+    static func fixtureURL() throws -> URL {
+        try Fixtures.url("sample-mixed.pdf")
     }
 
-    // Kept in sync with the fixture contents.
+    // Kept in sync with MIXED_FILES in tools/make_fixtures.py.
     static let expected: [String: Data] = [
         "embedded.txt":  Data("document-level embedded file\n".utf8),        // /EmbeddedFiles
         "shared.txt":    Data("shared between EmbeddedFiles and AF\n".utf8),  // /EmbeddedFiles + /AF (same object)
