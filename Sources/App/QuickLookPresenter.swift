@@ -11,8 +11,14 @@ final class PreviewItem: NSObject, QLPreviewItem {
 /// Drives the shared Quick Look panel (the spacebar-style floating window) over
 /// the current embedded-file list. Materializes bytes to temp files lazily, only
 /// for the item Quick Look actually asks to display. Left/right arrows in the
-/// panel walk the whole list.
-final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
+/// panel walk the whole list. Main-actor bound, like the `QLPreviewPanel` it drives.
+///
+/// `QLPreviewPanelDataSource` carries no isolation annotation, but the panel calls its data
+/// source on the main thread. `@preconcurrency` records that; Swift traps at runtime if it ever
+/// doesn't.
+@MainActor
+final class QuickLookPresenter: NSObject, @preconcurrency QLPreviewPanelDataSource,
+    QLPreviewPanelDelegate {
     static let shared = QuickLookPresenter()
 
     private var items: [EmbeddedFile] = []

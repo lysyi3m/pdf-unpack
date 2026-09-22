@@ -1,17 +1,24 @@
 import Foundation
 import PDFUnpackKit
+import Synchronization
 
 /// Writes embedded-file bytes to a per-session temp directory on demand and caches
 /// the resulting URLs. Quick Look and drag-out both need a real file on disk;
 /// this defers that write until first use so large portfolios don't hit disk
 /// eagerly. The session directory is removed on app termination.
-final class TempStore {
+///
+/// Called from the main actor and from drag-out's file export, which runs off it,
+/// so all mutable state sits behind one `Mutex`.
+final class TempStore: Sendable {
     static let shared = TempStore()
 
+    private struct State {
+        var cache: [UUID: URL] = [:]
+        var usedNames: Set<String> = []
+    }
+
     private let sessionDir: URL
-    private var cache: [UUID: URL] = [:]
-    private var usedNames: Set<String> = []
-    private let lock = NSLock()
+    private let state = Mutex(State())
 
     private init() {
         sessionDir = FileManager.default.temporaryDirectory
@@ -20,30 +27,29 @@ final class TempStore {
 
     /// Materialize `file` to disk (once) and return its file URL.
     func materialize(_ file: EmbeddedFile) throws -> URL {
-        lock.lock()
-        defer { lock.unlock() }
+        try state.withLock { state in
+            if let url = state.cache[file.id] { return url }
 
-        if let url = cache[file.id] { return url }
-
-        try FileManager.default.createDirectory(at: sessionDir, withIntermediateDirectories: true)
-        // Reserve the deduped name against a copy and only commit it if the
-        // write succeeds, so a failed write doesn't burn a name for the session.
-        var reserved = usedNames
-        let filename = Filename.deduplicated(Filename.sanitized(file.name), taken: &reserved)
-        let url = sessionDir.appendingPathComponent(filename)
-        try file.data.write(to: url)
-        usedNames = reserved
-        cache[file.id] = url
-        return url
+            try FileManager.default.createDirectory(at: sessionDir, withIntermediateDirectories: true)
+            // Reserve the deduped name against a copy and only commit it if the
+            // write succeeds, so a failed write doesn't burn a name for the session.
+            var reserved = state.usedNames
+            let filename = Filename.deduplicated(Filename.sanitized(file.name), taken: &reserved)
+            let url = sessionDir.appendingPathComponent(filename)
+            try file.data.write(to: url)
+            state.usedNames = reserved
+            state.cache[file.id] = url
+            return url
+        }
     }
 
-    /// Synchronized with `materialize` so cleanup can't race a concurrent
+    /// Holds the same lock as `materialize`, so cleanup can't race a concurrent
     /// drag/Quick Look write mid-materialization.
     func cleanup() {
-        lock.lock()
-        defer { lock.unlock() }
-        try? FileManager.default.removeItem(at: sessionDir)
-        cache.removeAll()
-        usedNames.removeAll()
+        state.withLock { state in
+            try? FileManager.default.removeItem(at: sessionDir)
+            state.cache.removeAll()
+            state.usedNames.removeAll()
+        }
     }
 }
