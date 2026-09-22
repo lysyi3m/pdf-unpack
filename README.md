@@ -39,8 +39,8 @@ drag **PDF Unpack** into Applications.
 
 ## Requirements
 
-- macOS 15 (Sequoia) or later
-- Xcode 16+ (to build)
+- macOS 26 or later
+- Xcode 26 or later, to build
 
 ## Build & run
 

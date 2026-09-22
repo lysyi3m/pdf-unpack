@@ -32,7 +32,7 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
 
 ## Stack
 
-- SwiftUI app lifecycle with AppKit where needed, macOS 15+, Swift 5. No iOS target.
+- SwiftUI app lifecycle with AppKit where needed, macOS 26+, Swift 5. No iOS target.
 - Apple frameworks only: SwiftUI, AppKit, CoreGraphics (CGPDF), Quartz/QuickLookUI,
   UniformTypeIdentifiers, Foundation.
 - Two product targets: `PDFUnpackKit` (`Sources/Kit`, UI-free core) and `PDF Unpack`

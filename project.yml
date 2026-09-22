@@ -8,7 +8,7 @@ options:
   createIntermediateGroups: true
   developmentLanguage: en
   deploymentTarget:
-    macOS: "15.0"
+    macOS: "26.0"
 
 configFiles:
   Debug: Config/Base.xcconfig
@@ -51,7 +51,7 @@ targets:
         CFBundleName: PDF Unpack
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        LSMinimumSystemVersion: "15.0"
+        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         NSHumanReadableCopyright: "© 2026 Emil Kashkevich · MIT License"
         # Finder "Open With ▸ PDF Unpack" for PDFs
         CFBundleDocumentTypes:
