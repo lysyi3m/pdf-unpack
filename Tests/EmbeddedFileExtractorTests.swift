@@ -1,7 +1,7 @@
 import XCTest
 @testable import PDFUnpackKit
 
-final class PDFAttachmentExtractorTests: XCTestCase {
+final class EmbeddedFileExtractorTests: XCTestCase {
 
     static let password = "test123"
 
@@ -10,7 +10,7 @@ final class PDFAttachmentExtractorTests: XCTestCase {
     /// unsandboxed and can read straight from the repo.
     static func fixtureURL(file: StaticString = #filePath) throws -> URL {
         let testFile = URL(fileURLWithPath: "\(file)")
-        // .../pdf-unpack/Tests/PDFAttachmentExtractorTests.swift → repo root is two up.
+        // .../pdf-unpack/Tests/EmbeddedFileExtractorTests.swift → repo root is two up.
         let repoRoot = testFile.deletingLastPathComponent().deletingLastPathComponent()
         let fixture = repoRoot
             .appendingPathComponent("fixtures")
@@ -36,57 +36,57 @@ final class PDFAttachmentExtractorTests: XCTestCase {
     // MARK: - Encryption / unlock
 
     func testFixtureIsEncrypted() throws {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
         XCTAssertTrue(extractor.isEncrypted)
         XCTAssertFalse(extractor.isUnlocked)
     }
 
     func testExtractBeforeUnlockThrows() throws {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
-        XCTAssertThrowsError(try extractor.extractAttachments()) { error in
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
+        XCTAssertThrowsError(try extractor.extractEmbeddedFiles()) { error in
             XCTAssertEqual(error as? PDFError, .notUnlocked)
         }
     }
 
     func testWrongPasswordFails() throws {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
         XCTAssertFalse(extractor.unlock(password: "nope"))
         XCTAssertFalse(extractor.isUnlocked)
     }
 
     func testCorrectPasswordUnlocks() throws {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
         XCTAssertTrue(extractor.unlock(password: Self.password))
         XCTAssertTrue(extractor.isUnlocked)
     }
 
     // MARK: - Extraction
 
-    private func unlockedExtractor() throws -> PDFAttachmentExtractor {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
+    private func unlockedExtractor() throws -> EmbeddedFileExtractor {
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
         XCTAssertTrue(extractor.unlock(password: Self.password))
         return extractor
     }
 
-    func testAttachmentCount() throws {
-        let atts = try unlockedExtractor().extractAttachments()
-        XCTAssertEqual(atts.count, 3)
+    func testEmbeddedFileCount() throws {
+        let files = try unlockedExtractor().extractEmbeddedFiles()
+        XCTAssertEqual(files.count, 3)
     }
 
-    func testAttachmentNames() throws {
-        let names = Set(try unlockedExtractor().extractAttachments().map(\.name))
+    func testEmbeddedFileNames() throws {
+        let names = Set(try unlockedExtractor().extractEmbeddedFiles().map(\.name))
         XCTAssertEqual(names, ["hello.txt", "data.csv", "pixel.png"])
     }
 
-    func testAttachmentSizesMatchByteCounts() throws {
-        for att in try unlockedExtractor().extractAttachments() {
-            XCTAssertEqual(att.size, att.data.count, "size mismatch for \(att.name)")
+    func testEmbeddedFileSizesMatchByteCounts() throws {
+        for file in try unlockedExtractor().extractEmbeddedFiles() {
+            XCTAssertEqual(file.size, file.data.count, "size mismatch for \(file.name)")
         }
     }
 
     func testBytesRoundTrip() throws {
         let byName = Dictionary(
-            uniqueKeysWithValues: try unlockedExtractor().extractAttachments().map { ($0.name, $0.data) }
+            uniqueKeysWithValues: try unlockedExtractor().extractEmbeddedFiles().map { ($0.name, $0.data) }
         )
         XCTAssertEqual(byName["hello.txt"], Self.expectedTxt)
         XCTAssertEqual(byName["data.csv"], Self.expectedCsv)
@@ -94,9 +94,9 @@ final class PDFAttachmentExtractorTests: XCTestCase {
     }
 
     func testModDateParsed() throws {
-        // Every attachment in the fixture is stamped with D:20240115103000Z.
-        for att in try unlockedExtractor().extractAttachments() {
-            let date = try XCTUnwrap(att.modDate, "missing modDate for \(att.name)")
+        // Every embedded file in the fixture is stamped with D:20240115103000Z.
+        for file in try unlockedExtractor().extractEmbeddedFiles() {
+            let date = try XCTUnwrap(file.modDate, "missing modDate for \(file.name)")
             var cal = Calendar(identifier: .gregorian)
             cal.timeZone = TimeZone(secondsFromGMT: 0)!
             let c = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)

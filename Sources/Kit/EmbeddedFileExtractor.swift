@@ -1,8 +1,9 @@
 import CoreGraphics
 import Foundation
 
-/// A file embedded in a PDF's document-level `/EmbeddedFiles` name tree.
-public struct RawAttachment {
+/// An embedded file as the extractor returns it, from any of the sources
+/// `extractEmbeddedFiles()` reads. `EmbeddedFile` adds the per-load identity the UI needs.
+public struct RawEmbeddedFile {
     public let name: String
     public let size: Int
     public let modDate: Date?
@@ -23,11 +24,11 @@ public enum PDFError: Error {
 }
 
 /// UI-free core: opens a PDF via the CGPDF C API, handles password unlock, and
-/// walks catalog → /Names → /EmbeddedFiles to pull out embedded files.
+/// collects the embedded files from every place a PDF can carry them.
 ///
 /// PDFKit deliberately can't do this — `PDFDocument` exposes no API for
 /// document-level embedded files, so we drop to `CGPDFDocument`.
-public final class PDFAttachmentExtractor {
+public final class EmbeddedFileExtractor {
 
     private let doc: CGPDFDocument
 
@@ -47,7 +48,7 @@ public final class PDFAttachmentExtractor {
     }
 
     /// Collects every embedded file, from all three places a PDF can hide one:
-    ///   1. document-level `/Names → /EmbeddedFiles` (portfolios / attachments),
+    ///   1. document-level `/Names → /EmbeddedFiles` (portfolios),
     ///   2. page `/FileAttachment` annotations,
     ///   3. PDF 2.0 associated files (`/AF`) on the catalog and pages
     ///      (how e-invoices — ZUGFeRD/Factur-X — and PDF/A-3 embed data).
@@ -55,11 +56,11 @@ public final class PDFAttachmentExtractor {
     /// returned once: first cheaply by file-spec object identity, then by a
     /// content fallback (identical name + bytes) in case CGPDF ever hands back
     /// distinct pointers for the same underlying object.
-    public func extractAttachments() throws -> [RawAttachment] {
+    public func extractEmbeddedFiles() throws -> [RawEmbeddedFile] {
         guard doc.isUnlocked else { throw PDFError.notUnlocked }
         guard let catalog = doc.catalog else { return [] }
 
-        var results: [RawAttachment] = []
+        var results: [RawEmbeddedFile] = []
         var visitedNodes = Set<UnsafeRawPointer>()   // name-tree cycle guard
         var seenSpecs = Set<UnsafeRawPointer>()       // file-spec de-dup
 
@@ -96,44 +97,44 @@ public final class PDFAttachmentExtractor {
     /// Names are almost always unique, so we compare bytes only among entries
     /// that actually share a name — a uniquely named file never gets its payload
     /// hashed or compared.
-    private func deduplicatedByContent(_ attachments: [RawAttachment]) -> [RawAttachment] {
+    private func deduplicatedByContent(_ embeddedFiles: [RawEmbeddedFile]) -> [RawEmbeddedFile] {
         var payloadsByName: [String: [Data]] = [:]
-        var result: [RawAttachment] = []
-        result.reserveCapacity(attachments.count)
-        for att in attachments {
-            if let seen = payloadsByName[att.name] {
-                if seen.contains(att.data) { continue }   // same name + bytes → duplicate
-                payloadsByName[att.name]?.append(att.data)
+        var result: [RawEmbeddedFile] = []
+        result.reserveCapacity(embeddedFiles.count)
+        for file in embeddedFiles {
+            if let seen = payloadsByName[file.name] {
+                if seen.contains(file.data) { continue }   // same name + bytes → duplicate
+                payloadsByName[file.name]?.append(file.data)
             } else {
-                payloadsByName[att.name] = [att.data]
+                payloadsByName[file.name] = [file.data]
             }
-            result.append(att)
+            result.append(file)
         }
         return result
     }
 
     /// Extract a file spec once (deduped by object identity) and append it.
-    private func addAttachment(from filespec: CGPDFDictionaryRef,
+    private func addEmbeddedFile(from filespec: CGPDFDictionaryRef,
                                fallbackName: String?,
                                seen: inout Set<UnsafeRawPointer>,
-                               into results: inout [RawAttachment]) {
+                               into results: inout [RawEmbeddedFile]) {
         let id = unsafeBitCast(filespec, to: UnsafeRawPointer.self)
         guard seen.insert(id).inserted else { return }
-        if let att = attachment(from: filespec, fallbackName: fallbackName) {
-            results.append(att)
+        if let file = embeddedFile(from: filespec, fallbackName: fallbackName) {
+            results.append(file)
         }
     }
 
     /// A file-spec array under `/AF` on the given dictionary (catalog or page).
     private func collectAssociatedFiles(from dict: CGPDFDictionaryRef,
                                         seen: inout Set<UnsafeRawPointer>,
-                                        into results: inout [RawAttachment]) {
+                                        into results: inout [RawEmbeddedFile]) {
         var af: CGPDFArrayRef?
         guard CGPDFDictionaryGetArray(dict, "AF", &af), let arr = af else { return }
         for k in 0..<CGPDFArrayGetCount(arr) {
             var filespec: CGPDFDictionaryRef?
             if CGPDFArrayGetDictionary(arr, k, &filespec), let fs = filespec {
-                addAttachment(from: fs, fallbackName: nil, seen: &seen, into: &results)
+                addEmbeddedFile(from: fs, fallbackName: nil, seen: &seen, into: &results)
             }
         }
     }
@@ -141,7 +142,7 @@ public final class PDFAttachmentExtractor {
     /// `/FileAttachment` annotations on a page → their `/FS` file specs.
     private func collectPageAnnotations(from pageDict: CGPDFDictionaryRef,
                                         seen: inout Set<UnsafeRawPointer>,
-                                        into results: inout [RawAttachment]) {
+                                        into results: inout [RawEmbeddedFile]) {
         var annots: CGPDFArrayRef?
         guard CGPDFDictionaryGetArray(pageDict, "Annots", &annots), let arr = annots else { return }
         for k in 0..<CGPDFArrayGetCount(arr) {
@@ -154,7 +155,7 @@ public final class PDFAttachmentExtractor {
 
             var filespec: CGPDFDictionaryRef?
             if CGPDFDictionaryGetDictionary(a, "FS", &filespec), let fs = filespec {
-                addAttachment(from: fs, fallbackName: nil, seen: &seen, into: &results)
+                addEmbeddedFile(from: fs, fallbackName: nil, seen: &seen, into: &results)
             }
         }
     }
@@ -168,7 +169,7 @@ public final class PDFAttachmentExtractor {
     private func walkNameTree(_ node: CGPDFDictionaryRef,
                               visited: inout Set<UnsafeRawPointer>,
                               seen: inout Set<UnsafeRawPointer>,
-                              into results: inout [RawAttachment],
+                              into results: inout [RawEmbeddedFile],
                               depth: Int = 0) {
         guard depth < Self.maxTreeDepth else { return }
         // Skip nodes we've already visited (cycle guard). The node ref is an
@@ -187,7 +188,7 @@ public final class PDFAttachmentExtractor {
                     // The even index is the name-tree key — use it as the
                     // filename fallback when the filespec lacks /UF and /F.
                     let key = pdfArrayText(arr, i)
-                    addAttachment(from: fs, fallbackName: key, seen: &seen, into: &results)
+                    addEmbeddedFile(from: fs, fallbackName: key, seen: &seen, into: &results)
                 }
                 i += 2
             }
@@ -204,7 +205,7 @@ public final class PDFAttachmentExtractor {
         }
     }
 
-    private func attachment(from filespec: CGPDFDictionaryRef, fallbackName: String?) -> RawAttachment? {
+    private func embeddedFile(from filespec: CGPDFDictionaryRef, fallbackName: String?) -> RawEmbeddedFile? {
         // Filename: prefer /UF (unicode), fall back to /F, then the name-tree key.
         // (In well-formed PDFs /F and /UF name the same file — different encodings
         // of one filename — so pairing the chosen name with a specific /EF stream
@@ -223,7 +224,7 @@ public final class PDFAttachmentExtractor {
         guard let s = stream else { return nil }
 
         // CGPDFStreamCopyData applies standard filters (e.g. FlateDecode),
-        // so `data` is the real file bytes for typical attachments.
+        // so `data` is the real file bytes for typical embedded files.
         var format: CGPDFDataFormat = .raw
         guard let cf = CGPDFStreamCopyData(s, &format) else { return nil }
         let data = cf as Data
@@ -239,7 +240,7 @@ public final class PDFAttachmentExtractor {
                 if let ds = pdfText(p, "ModDate") { modDate = PDFDate.parse(ds) }
             }
         }
-        return RawAttachment(name: name, size: size, modDate: modDate, data: data)
+        return RawEmbeddedFile(name: name, size: size, modDate: modDate, data: data)
     }
 
     private func pdfArrayText(_ arr: CGPDFArrayRef, _ index: Int) -> String? {

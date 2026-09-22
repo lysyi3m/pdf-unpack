@@ -37,12 +37,14 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
 
 ## Terminology
 
-- **Embedded file** — a file carried inside a PDF. The word used in UI strings and docs.
+- **Embedded file** — a file carried inside a PDF, from any source. `EmbeddedFile` and
+  `RawEmbeddedFile` in code.
 - **Portfolio** — a PDF whose purpose is to carry embedded files.
 - **Owner / user password** — the two ways a PDF can be locked. Both unlock the document.
 
-The code type is `Attachment` / `RawAttachment`, which predates this rule. Do not spread
-"attachment" into new UI strings or docs.
+Never "attachment" for the general concept. In the PDF standard a file attachment is one
+specific source — the `/FileAttachment` page annotation — so the word would name a part as the
+whole.
 
 ## Invariants
 

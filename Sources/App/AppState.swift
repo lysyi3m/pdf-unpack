@@ -4,7 +4,7 @@ import UniformTypeIdentifiers
 import PDFUnpackKit
 
 /// Observable app model: current document, unlock flow, and the list of
-/// extracted attachments. Shared singleton so the AppDelegate and the Services
+/// extracted embedded files. Shared singleton so the AppDelegate and the Services
 /// provider can drive it regardless of window/scene lifecycle timing.
 @MainActor
 final class AppState: ObservableObject {
@@ -12,17 +12,17 @@ final class AppState: ObservableObject {
 
     @Published var fileName: String?
     @Published var needsPassword = false
-    @Published var attachments: [Attachment] = []
-    @Published var selection: Set<Attachment.ID> = []
+    @Published var embeddedFiles: [EmbeddedFile] = []
+    @Published var selection: Set<EmbeddedFile.ID> = []
     @Published var loadError: String?
 
-    private var extractor: PDFAttachmentExtractor?
+    private var extractor: EmbeddedFileExtractor?
     private var currentURL: URL?
     private var accessingScope = false
 
-    /// Selected attachments, in list order.
-    var selectedAttachments: [Attachment] {
-        attachments.filter { selection.contains($0.id) }
+    /// Selected embedded files, in list order.
+    var selectedEmbeddedFiles: [EmbeddedFile] {
+        embeddedFiles.filter { selection.contains($0.id) }
     }
 
     // MARK: - Loading
@@ -35,7 +35,7 @@ final class AppState: ObservableObject {
         let accessing = url.startAccessingSecurityScopedResource()
 
         do {
-            let extractor = try PDFAttachmentExtractor(url: url)
+            let extractor = try EmbeddedFileExtractor(url: url)
             self.extractor = extractor
             self.currentURL = url
             self.accessingScope = accessing
@@ -76,8 +76,8 @@ final class AppState: ObservableObject {
     private func finishLoading() {
         guard let extractor else { return }
         do {
-            attachments = try extractor.extractAttachments().map(Attachment.init)
-            selection = attachments.first.map { [$0.id] } ?? []
+            embeddedFiles = try extractor.extractEmbeddedFiles().map(EmbeddedFile.init)
+            selection = embeddedFiles.first.map { [$0.id] } ?? []
         } catch {
             // Release the document + its security scope rather than leaving a
             // half-loaded state alive, then surface the error.
@@ -99,7 +99,7 @@ final class AppState: ObservableObject {
     private func reset() {
         releaseSecurityScope()
         extractor = nil
-        attachments = []
+        embeddedFiles = []
         selection = []
         needsPassword = false
         loadError = nil
@@ -118,31 +118,31 @@ final class AppState: ObservableObject {
         }
     }
 
-    func save(_ att: Attachment) {
+    func save(_ file: EmbeddedFile) {
         let panel = NSSavePanel()
-        panel.nameFieldStringValue = Filename.sanitized(att.name)
+        panel.nameFieldStringValue = Filename.sanitized(file.name)
         if panel.runModal() == .OK, let url = panel.url {
             do {
-                try att.data.write(to: url)
+                try file.data.write(to: url)
             } catch {
-                loadError = "Couldn’t save “\(att.name)”: \(error.localizedDescription)"
+                loadError = "Couldn’t save “\(file.name)”: \(error.localizedDescription)"
             }
         }
     }
 
     func toggleQuickLook() {
-        QuickLookPresenter.shared.toggle(all: attachments, selected: selection)
+        QuickLookPresenter.shared.toggle(all: embeddedFiles, selected: selection)
     }
 
     func saveAll() {
-        guard !attachments.isEmpty else { return }
+        guard !embeddedFiles.isEmpty else { return }
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.canCreateDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = "Save All"
-        panel.message = "Choose a folder to save all \(attachments.count) files into."
+        panel.message = "Choose a folder to save all \(embeddedFiles.count) files into."
 
         let response = panel.runModal()
         guard response == .OK else { return }
@@ -156,13 +156,13 @@ final class AppState: ObservableObject {
         var used = Set<String>()
         var written: [URL] = []
         var failures: [String] = []
-        for att in attachments {
-            let dest = uniqueDestination(for: att.name, in: dir, used: &used)
+        for file in embeddedFiles {
+            let dest = uniqueDestination(for: file.name, in: dir, used: &used)
             do {
-                try att.data.write(to: dest)
+                try file.data.write(to: dest)
                 written.append(dest)
             } catch {
-                failures.append("\(att.name): \(error.localizedDescription)")
+                failures.append("\(file.name): \(error.localizedDescription)")
             }
         }
 
@@ -170,7 +170,7 @@ final class AppState: ObservableObject {
             NSWorkspace.shared.activateFileViewerSelecting(written)
         }
         if !failures.isEmpty {
-            loadError = "Couldn’t save \(failures.count) of \(attachments.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
+            loadError = "Couldn’t save \(failures.count) of \(embeddedFiles.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
         }
     }
 

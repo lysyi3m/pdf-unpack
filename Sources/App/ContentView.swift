@@ -10,7 +10,7 @@ struct ContentView: View {
     /// update pass; if that binding were an ObservableObject's @Published, the
     /// mid-render publish trips SwiftUI's "publishing during view updates" fault
     /// on every click. We mirror to/from AppState in onChange (post-update).
-    @State private var selection: Set<Attachment.ID> = []
+    @State private var selection: Set<EmbeddedFile.ID> = []
 
     private var isLoaded: Bool { state.fileName != nil && !state.needsPassword }
 
@@ -48,18 +48,18 @@ struct ContentView: View {
     }
 
     private var loadedView: some View {
-        List(state.attachments, selection: $selection) { att in
-            AttachmentRow(attachment: att)
+        List(state.embeddedFiles, selection: $selection) { file in
+            EmbeddedFileRow(embeddedFile: file)
                 .contextMenu {
                     Button("Quick Look") {
-                        if !state.selection.contains(att.id) { state.selection = [att.id] }
+                        if !state.selection.contains(file.id) { state.selection = [file.id] }
                         state.toggleQuickLook()
                     }
-                    Button("Save…") { state.save(att) }
+                    Button("Save…") { state.save(file) }
                 }
         }
         .overlay {
-            if state.attachments.isEmpty {
+            if state.embeddedFiles.isEmpty {
                 ContentUnavailableView(
                     "No Embedded Files",
                     systemImage: "tray",
@@ -103,7 +103,7 @@ struct ContentView: View {
                 Label("Open…", systemImage: "folder")
             }
 
-            if isLoaded && !state.attachments.isEmpty {
+            if isLoaded && !state.embeddedFiles.isEmpty {
                 Button {
                     state.saveAll()
                 } label: {
@@ -125,7 +125,7 @@ struct ContentView: View {
     /// rather than precomputing URLs in onChange/@State — keeps disk I/O and
     /// state mutation out of the render pass entirely.
     private func shareSelection() {
-        let urls = state.selectedAttachments.compactMap { try? TempStore.shared.materialize($0) }
+        let urls = state.selectedEmbeddedFiles.compactMap { try? TempStore.shared.materialize($0) }
         guard !urls.isEmpty, let view = NSApp.keyWindow?.contentView else { return }
         let picker = NSSharingServicePicker(items: urls)
         let anchor = NSRect(x: view.bounds.maxX - 40, y: view.bounds.maxY, width: 1, height: 1)
@@ -139,7 +139,7 @@ struct ContentView: View {
     }
 
     private var itemCountText: String {
-        switch state.attachments.count {
+        switch state.embeddedFiles.count {
         case 0: return "No files"
         case 1: return "1 file"
         case let n: return "\(n) files"

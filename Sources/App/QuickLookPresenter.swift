@@ -9,19 +9,19 @@ final class PreviewItem: NSObject, QLPreviewItem {
 }
 
 /// Drives the shared Quick Look panel (the spacebar-style floating window) over
-/// the current attachment list. Materializes bytes to temp files lazily, only
+/// the current embedded-file list. Materializes bytes to temp files lazily, only
 /// for the item Quick Look actually asks to display. Left/right arrows in the
 /// panel walk the whole list.
 final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPanelDelegate {
     static let shared = QuickLookPresenter()
 
-    private var items: [Attachment] = []
+    private var items: [EmbeddedFile] = []
 
     /// Open Quick Look, or close it if already showing (Finder spacebar toggle).
     /// With 2+ files selected, preview just that selection; with 0–1 selected,
     /// preview the whole list so the arrow keys browse everything.
-    func toggle(all attachments: [Attachment], selected: Set<Attachment.ID>) {
-        guard !attachments.isEmpty else { return }
+    func toggle(all embeddedFiles: [EmbeddedFile], selected: Set<EmbeddedFile.ID>) {
+        guard !embeddedFiles.isEmpty else { return }
 
         if QLPreviewPanel.sharedPreviewPanelExists(),
            let panel = QLPreviewPanel.shared(), panel.isVisible {
@@ -31,15 +31,15 @@ final class QuickLookPresenter: NSObject, QLPreviewPanelDataSource, QLPreviewPan
 
         guard let panel = QLPreviewPanel.shared() else { return }
 
-        let selectedItems = attachments.filter { selected.contains($0.id) }
+        let selectedItems = embeddedFiles.filter { selected.contains($0.id) }
         let startIndex: Int
         if selectedItems.count >= 2 {
             items = selectedItems
             startIndex = 0
         } else {
-            items = attachments
+            items = embeddedFiles
             startIndex = selectedItems.first.flatMap { sel in
-                attachments.firstIndex { $0.id == sel.id }
+                embeddedFiles.firstIndex { $0.id == sel.id }
             } ?? 0
         }
 

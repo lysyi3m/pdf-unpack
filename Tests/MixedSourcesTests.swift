@@ -30,25 +30,25 @@ final class MixedSourcesTests: XCTestCase {
         "dup.txt":       Data("identical content under two distinct filespec objects\n".utf8), // distinct objects, same bytes
     ]
 
-    private func attachments() throws -> [RawAttachment] {
-        let extractor = try PDFAttachmentExtractor(url: Self.fixtureURL())
+    private func embeddedFiles() throws -> [RawEmbeddedFile] {
+        let extractor = try EmbeddedFileExtractor(url: Self.fixtureURL())
         XCTAssertTrue(extractor.isUnlocked)   // fixture is not encrypted
-        return try extractor.extractAttachments()
+        return try extractor.extractEmbeddedFiles()
     }
 
     func testAllSourcesExtractedAndDeduped() throws {
-        let atts = try attachments()
-        XCTAssertEqual(atts.count, 6, "expected 6 deduped files, got \(atts.map(\.name))")
-        XCTAssertEqual(Set(atts.map(\.name)), Set(Self.expected.keys))
+        let files = try embeddedFiles()
+        XCTAssertEqual(files.count, 6, "expected 6 deduped files, got \(files.map(\.name))")
+        XCTAssertEqual(Set(files.map(\.name)), Set(Self.expected.keys))
         // shared.txt: same filespec object referenced twice → object-identity dedup.
-        XCTAssertEqual(atts.filter { $0.name == "shared.txt" }.count, 1, "shared.txt not deduped")
+        XCTAssertEqual(files.filter { $0.name == "shared.txt" }.count, 1, "shared.txt not deduped")
         // dup.txt: two distinct filespec objects, identical bytes → content dedup.
-        XCTAssertEqual(atts.filter { $0.name == "dup.txt" }.count, 1, "dup.txt not content-deduped")
+        XCTAssertEqual(files.filter { $0.name == "dup.txt" }.count, 1, "dup.txt not content-deduped")
     }
 
     func testBytesRoundTrip() throws {
         var byName: [String: Data] = [:]
-        for att in try attachments() where byName[att.name] == nil { byName[att.name] = att.data }
+        for file in try embeddedFiles() where byName[file.name] == nil { byName[file.name] = file.data }
         for (name, expected) in Self.expected {
             XCTAssertEqual(byName[name], expected, "content mismatch for \(name)")
         }
