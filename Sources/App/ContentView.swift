@@ -136,7 +136,13 @@ struct ContentView: View {
         if let item = window.toolbar?.items.first(where: { $0.label == Self.shareLabel })?.view {
             picker.show(relativeTo: item.bounds, of: item, preferredEdge: item.isFlipped ? .maxY : .minY)
         } else if let content = window.contentView {
-            picker.show(relativeTo: content.bounds, of: content, preferredEdge: .minY)
+            assertionFailure("No toolbar item titled \(Self.shareLabel)")
+            // Just under the toolbar at the trailing edge, where the Share button sits. The
+            // content view extends under the toolbar, so measure from the layout rect.
+            let layout = content.convert(window.contentLayoutRect, from: nil)
+            let top = content.isFlipped ? layout.minY : layout.maxY
+            let anchor = NSRect(x: layout.maxX - 40, y: top, width: 1, height: 1)
+            picker.show(relativeTo: anchor, of: content, preferredEdge: content.isFlipped ? .maxY : .minY)
         }
     }
 
