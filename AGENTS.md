@@ -84,10 +84,10 @@ and `*.private.pdf` are git-ignored — keep it that way.
 
 - **Quote the project path** in every command — `"PDF Unpack.xcodeproj"` contains a space.
 - **The app is not sandboxed yet** (`com.apple.security.app-sandbox: false`); the Mac App Store
-  requires it. A build signed with `app-sandbox` and `files.user-selected.read-write` was tested:
-  Finder open, password unlock and Quick Look previews (text and image) all work, with temp files
-  in the app container. Still to check sandboxed: Save…, Save All…, drag in, drag out, Share
-  and the Services item.
+  requires it. A build signed with `app-sandbox` and `files.user-selected.read-write` works on
+  every path: Finder open, Services, drag in, password unlock, Quick Look (text and image),
+  Save…, Save All…, drag out and Share. Temp files live in the app container, and files the app
+  writes carry `com.apple.quarantine`, as with every sandboxed app.
 - **Naming.** Display name `PDF Unpack`; code identifiers `PDFUnpack` (app struct
   `PDFUnpackApp`, temp dir prefix `PDFUnpack-<uuid>`, Services handler `openInPDFUnpack`);
   bundle id `com.mlkshkvch.pdfunpack`.
