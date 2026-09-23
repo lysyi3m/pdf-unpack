@@ -30,6 +30,8 @@ struct PDFUnpackApp: App {
                     .disabled(state.selection.isEmpty)
             }
             // App Review requires a privacy policy link inside the app (guideline 5.1.1(i)).
+            // Replacing the group drops the default Help item on purpose: with no help book, it
+            // only shows "Help isn't available for PDF Unpack."
             CommandGroup(replacing: .help) {
                 Link("Privacy Policy", destination: URL(string: "https://github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md")!)
             }
