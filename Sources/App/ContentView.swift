@@ -113,23 +113,37 @@ struct ContentView: View {
                 Button {
                     shareSelection()
                 } label: {
-                    Label("Share", systemImage: "square.and.arrow.up")
+                    Label(Self.shareLabel, systemImage: "square.and.arrow.up")
                 }
                 .disabled(state.selection.isEmpty)
             }
         }
     }
 
+    /// The Share button's title. `shareSelection` finds the toolbar item by it.
+    private static let shareLabel = "Share"
+
     /// Materialize the selected files lazily (on click) and present the native
-    /// macOS share menu anchored near the toolbar. Doing this in an action —
+    /// macOS share menu under the Share toolbar item. Doing this in an action —
     /// rather than precomputing URLs in onChange/@State — keeps disk I/O and
-    /// state mutation out of the render pass entirely.
+    /// state mutation out of the render pass entirely. File URLs, rather than
+    /// `ShareLink`, let the share menu match each file's real type.
     private func shareSelection() {
         let urls = state.selectedEmbeddedFiles.compactMap { try? TempStore.shared.materialize($0) }
-        guard !urls.isEmpty, let view = NSApp.keyWindow?.contentView else { return }
+        guard !urls.isEmpty, let window = NSApp.keyWindow else { return }
         let picker = NSSharingServicePicker(items: urls)
-        let anchor = NSRect(x: view.bounds.maxX - 40, y: view.bounds.maxY, width: 1, height: 1)
-        picker.show(relativeTo: anchor, of: view, preferredEdge: .maxY)
+        // SwiftUI backs each toolbar item with an NSToolbarItem whose view hosts the button.
+        if let item = window.toolbar?.items.first(where: { $0.label == Self.shareLabel })?.view {
+            picker.show(relativeTo: item.bounds, of: item, preferredEdge: item.isFlipped ? .maxY : .minY)
+        } else if let content = window.contentView {
+            assertionFailure("No toolbar item titled \(Self.shareLabel)")
+            // Just under the toolbar at the trailing edge, where the Share button sits. The
+            // content view extends under the toolbar, so measure from the layout rect.
+            let layout = content.convert(window.contentLayoutRect, from: nil)
+            let top = content.isFlipped ? layout.minY : layout.maxY
+            let anchor = NSRect(x: layout.maxX - 40, y: top, width: 1, height: 1)
+            picker.show(relativeTo: anchor, of: content, preferredEdge: content.isFlipped ? .maxY : .minY)
+        }
     }
 
     private var windowSubtitle: String {
