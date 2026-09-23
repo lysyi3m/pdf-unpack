@@ -19,15 +19,6 @@
   <img src="assets/file-list.png" alt="Embedded files listed" width="80%">
 </p>
 
-## Download
-
-Download the latest `.dmg` from the
-[**Releases**](https://github.com/lysyi3m/pdf-unpack/releases/latest) page and
-drag **PDF Unpack** into Applications.
-
-> **Note:** the app is not yet notarized. On first launch, approve it under
-> **System Settings ▸ Privacy & Security ▸ Open Anyway**.
-
 ## Features
 
 - **Open any PDF** — drag-and-drop, click to choose, ⌘O, or Finder's *Open With* / *Services*.
@@ -51,7 +42,7 @@ make generate                # regenerate "PDF Unpack.xcodeproj" from project.ym
 open "PDF Unpack.xcodeproj"  # then press ⌘R
 ```
 
-Run `make` to list the other tasks (`test`, `build`, `dmg`, `fixtures`, `clean`).
+Run `make` to list the other tasks (`test`, `build`, `fixtures`, `clean`).
 
 `PDF Unpack.xcodeproj` is generated from [`project.yml`](project.yml); it is gitignored and must not
 be hand-edited. `make generate` projects `DEVELOPMENT_TEAM` from `.env` into

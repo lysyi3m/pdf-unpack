@@ -1,17 +1,15 @@
 # PDF Unpack — common tasks.
-# Requires: xcodegen (all targets), create-dmg (`make dmg` only), python3 (`make fixtures` only).
-#   brew install xcodegen create-dmg
+# Requires: xcodegen (all targets), python3 (`make fixtures` only).
+#   brew install xcodegen
 
 PROJECT := PDF Unpack.xcodeproj
 SCHEME  := PDF Unpack
-APP     := build/Build/Products/Release/$(SCHEME).app
-DMG     := $(SCHEME).dmg
 VENV    := tools/.venv
 LOCAL_XCCONFIG := Config/Local.xcconfig
 TEAM_SETTING   := ^DEVELOPMENT_TEAM = [A-Z0-9]{10}$$
 
 .DEFAULT_GOAL := help
-.PHONY: help generate local-config test build dmg fixtures clean
+.PHONY: help generate local-config test build fixtures clean
 
 help: ## List available targets
 	@grep -E '^[a-z][a-zA-Z-]*:.*##' $(MAKEFILE_LIST) | sed -E 's/:.*## / — /' | sort
@@ -42,17 +40,10 @@ build: generate ## Build a Release .app (compile check; unsigned)
 	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
 		-derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
 
-dmg: build ## Build, ad-hoc sign, and package a distributable .dmg
-	@command -v create-dmg >/dev/null || { echo "Install create-dmg: brew install create-dmg"; exit 1; }
-	codesign --force --deep --sign - "$(APP)"
-	rm -f "$(DMG)"
-	create-dmg --volname "$(SCHEME)" --window-size 500 320 --icon-size 100 \
-		--icon "$(SCHEME).app" 130 150 --app-drop-link 370 150 "$(DMG)" "$(APP)"
-
 fixtures: ## Regenerate the test PDFs in fixtures/ (pikepdf goes into tools/.venv)
 	python3 -m venv $(VENV)
 	$(VENV)/bin/pip install --quiet --requirement tools/requirements.txt
 	$(VENV)/bin/python tools/make_fixtures.py
 
 clean: ## Remove build artifacts
-	rm -rf build "$(DMG)"
+	rm -rf build
