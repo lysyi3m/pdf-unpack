@@ -29,6 +29,10 @@ struct PDFUnpackApp: App {
                     .keyboardShortcut("y", modifiers: .command)
                     .disabled(state.selection.isEmpty)
             }
+            // App Review requires a privacy policy link inside the app (guideline 5.1.1(i)).
+            CommandGroup(replacing: .help) {
+                Link("Privacy Policy", destination: URL(string: "https://github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md")!)
+            }
         }
     }
 }
