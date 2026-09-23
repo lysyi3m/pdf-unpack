@@ -86,6 +86,10 @@ and PDF 2.0 associated files (`/AF` — including e-invoices such as
 ZUGFeRD / Factur-X and PDF/A-3 archives). A file referenced from more than one
 place is listed once. When a PDF has none, it shows a clean empty state.
 
+## Privacy
+
+PDF Unpack collects no data and has no network access — see [PRIVACY.md](PRIVACY.md).
+
 ## License
 
 The code is MIT — see [LICENSE](LICENSE). The app's name and icon are reserved; see

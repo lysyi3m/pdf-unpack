@@ -91,6 +91,9 @@ and `*.private.pdf` are git-ignored — keep it that way.
 - **Naming.** Display name `PDF Unpack`; code identifiers `PDFUnpack` (app struct
   `PDFUnpackApp`, temp dir prefix `PDFUnpack-<uuid>`, Services handler `openInPDFUnpack`);
   bundle id `com.mlkshkvch.pdfunpack`.
+- **`PRIVACY.md` has a fixed URL.** App Store Connect and Help ▸ Privacy Policy both point at
+  `github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md`. Never move or rename it, and keep its
+  claims true of the code.
 - Finder integration is declared in `project.yml`, not in code: `CFBundleDocumentTypes` gives
   *Open With*, `NSServices` gives the right-click *Open in PDF Unpack* item.
 - **Verify GUI changes in the running app.** `make build`, then
