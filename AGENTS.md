@@ -83,17 +83,22 @@ and `*.private.pdf` are git-ignored — keep it that way.
 ## Housekeeping
 
 - **Quote the project path** in every command — `"PDF Unpack.xcodeproj"` contains a space.
-- **The app is currently unsandboxed** (`com.apple.security.app-sandbox: false`). A sandboxed
-  Quick Look helper runs out of process and cannot read the temp files `TempStore` writes into
-  the app container. Turning the sandbox on requires solving that first, plus
-  `files.user-selected.read-write`.
+- **The app is not sandboxed yet** (`com.apple.security.app-sandbox: false`); the Mac App Store
+  requires it. A build signed with `app-sandbox` and `files.user-selected.read-write` was tested:
+  Finder open, password unlock and Quick Look previews (text and image) all work, with temp files
+  in the app container. Still to check sandboxed: Save…, Save All…, drag in, drag out, Share
+  and the Services item.
 - **Naming.** Display name `PDF Unpack`; code identifiers `PDFUnpack` (app struct
   `PDFUnpackApp`, temp dir prefix `PDFUnpack-<uuid>`, Services handler `openInPDFUnpack`);
   bundle id `com.mlkshkvch.pdfunpack`.
 - Finder integration is declared in `project.yml`, not in code: `CFBundleDocumentTypes` gives
   *Open With*, `NSServices` gives the right-click *Open in PDF Unpack* item.
-- The GUI cannot be exercised headlessly. Verify what unit tests can reach, then hand over a
-  manual checklist.
+- **Verify GUI changes in the running app.** `make build`, then
+  `open -a "build/Build/Products/Release/PDF Unpack.app" fixtures/sample-mixed.pdf`. System
+  Events reaches the menus (View ▸ Quick Look, File ▸ Open…) and keystrokes;
+  `CGWindowListCopyWindowInfo` gives window ids, and `screencapture -l <id>` captures one window.
+  Synthetic drags are unreliable, and the Services item routes to whichever registered copy of
+  the app answers, so drag-and-drop and Services still need a manual check.
 - **Fixtures are generated.** `make fixtures` rebuilds `fixtures/` from
   `tools/make_fixtures.py`. The names, bytes and dates it declares are asserted by the tests;
   change both together. Commit `sample-protected.pdf` only when its contents change — its
