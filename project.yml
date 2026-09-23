@@ -29,7 +29,7 @@ targets:
       - Sources/Kit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdfunpack.kit
+        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdf-unpack.kit
         GENERATE_INFOPLIST_FILE: YES
         DEFINES_MODULE: YES
 
@@ -42,7 +42,7 @@ targets:
       - target: PDFUnpackKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdfunpack
+        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdf-unpack
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: Config/Info.plist
@@ -86,7 +86,7 @@ targets:
       - target: PDFUnpackKit
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdfunpack.tests
+        PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdf-unpack.tests
         GENERATE_INFOPLIST_FILE: YES
 
 schemes:
