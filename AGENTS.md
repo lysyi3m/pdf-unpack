@@ -5,7 +5,7 @@ inside it, with Quick Look preview, save, drag-out and Finder integration.
 
 ## Ground rules
 
-Shared by `recogs`, `time-strip` and `pdf-unpack`. Where a repo-specific section below
+This section is shared word for word by every app in this family. Where a repo-specific section
 contradicts a rule here, the repo-specific rule wins — and say so when you notice it.
 
 - **One toolchain.** macOS 26+ (iOS 26+ where there is an iOS target), Swift 6 language mode,
