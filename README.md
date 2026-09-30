@@ -10,6 +10,12 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/id6815227329">
+    <img src="https://tools.applemediaservices.com/api/badges/download-on-the-mac-app-store/black/en-us?size=250x83" alt="Download on the Mac App Store" height="48">
+  </a>
+</p>
+
+<p align="center">
   <a href="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml">
     <img src="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
