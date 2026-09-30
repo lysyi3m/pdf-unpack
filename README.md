@@ -10,6 +10,10 @@
 </p>
 
 <p align="center">
+  <a href="https://apps.apple.com/app/id6815227329"><strong>Download on the Mac App Store</strong></a>
+</p>
+
+<p align="center">
   <a href="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml">
     <img src="https://github.com/lysyi3m/pdf-unpack/actions/workflows/ci.yml/badge.svg" alt="CI">
   </a>
