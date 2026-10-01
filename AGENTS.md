@@ -35,6 +35,14 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
   and SKU are permanent once a build is uploaded.
 - **One word per concept.** The Terminology section is binding for UI strings, code
   identifiers and docs alike. Do not introduce synonyms for variety.
+- **Release from a release PR.** When `master` holds the scope to ship, one
+  `chore(release): <version>` PR raises `MARKETING_VERSION` (`MAJOR.MINOR[.PATCH]`), raises
+  `CURRENT_PROJECT_VERSION` by one (it never resets), and adds the version's section to
+  `CHANGELOG.md`. Archive the merge commit, upload it, and paste that section as the App Store
+  "What's New" text. A rejected build needs a fix and a new `CURRENT_PROJECT_VERSION` before the
+  next upload. When Apple approves the build, tag the archived commit with a signed
+  `v<version>` tag and push the tag. A build that only goes to TestFlight gets no tag. There are
+  no GitHub Releases.
 
 ## Stack
 
