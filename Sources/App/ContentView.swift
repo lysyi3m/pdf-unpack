@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 import PDFUnpackKit
@@ -167,3 +168,4 @@ struct ContentView: View {
         )
     }
 }
+#endif

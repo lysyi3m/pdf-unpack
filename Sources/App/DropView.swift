@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 
@@ -52,3 +53,4 @@ struct DropView: View {
         } isTargeted: { targeted = $0 }
     }
 }
+#endif

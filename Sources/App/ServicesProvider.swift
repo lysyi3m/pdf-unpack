@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 /// Backs the right-click ▸ Services ▸ "Open in PDF Unpack" item declared in
@@ -14,3 +15,4 @@ final class ServicesProvider: NSObject {
         }
     }
 }
+#endif

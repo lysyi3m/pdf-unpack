@@ -1,4 +1,8 @@
+#if os(macOS)
 import Quartz
+#else
+import QuickLook
+#endif
 import PDFUnpackKit
 
 /// A single file handed to Quick Look. `previewItemURL` may be nil if the bytes
@@ -7,6 +11,8 @@ final class PreviewItem: NSObject, QLPreviewItem {
     let previewItemURL: URL?
     init(url: URL?) { previewItemURL = url }
 }
+
+#if os(macOS)
 
 /// Drives the shared Quick Look panel (the spacebar-style floating window) over
 /// the current embedded-file list. Materializes bytes to temp files lazily, only
@@ -68,3 +74,39 @@ final class QuickLookPresenter: NSObject, @preconcurrency QLPreviewPanelDataSour
         return PreviewItem(url: url)
     }
 }
+
+#else
+
+/// Presents a Quick Look controller over the current embedded-file list. Materializes bytes to
+/// temp files lazily, only for the item Quick Look actually asks to display. Swiping in the
+/// controller walks the whole list. The controller holds its data source weakly, so the shared
+/// instance keeps it alive.
+@MainActor
+final class QuickLookPresenter: NSObject, QLPreviewControllerDataSource {
+    static let shared = QuickLookPresenter()
+
+    private var items: [EmbeddedFile] = []
+
+    func present(all embeddedFiles: [EmbeddedFile], startingAt file: EmbeddedFile) {
+        guard let index = embeddedFiles.firstIndex(where: { $0.id == file.id }) else { return }
+        items = embeddedFiles
+
+        let controller = QLPreviewController()
+        controller.dataSource = self
+        controller.currentPreviewItemIndex = index
+        presentOnTop(controller)
+    }
+
+    // MARK: - QLPreviewControllerDataSource
+
+    func numberOfPreviewItems(in controller: QLPreviewController) -> Int {
+        items.count
+    }
+
+    func previewController(_ controller: QLPreviewController, previewItemAt index: Int) -> QLPreviewItem {
+        guard items.indices.contains(index) else { return PreviewItem(url: nil) }
+        let url = try? TempStore.shared.materialize(items[index])
+        return PreviewItem(url: url)
+    }
+}
+#endif
