@@ -1,4 +1,6 @@
+#if os(macOS)
 import AppKit
+#endif
 import SwiftUI
 import UniformTypeIdentifiers
 import PDFUnpackKit
@@ -106,6 +108,36 @@ final class AppState: ObservableObject {
         fileName = nil
     }
 
+    // MARK: - Saving
+
+    /// Write every embedded file into `dir` under a free name and return the URLs written.
+    /// Failures surface through `loadError`. Balances the folder's security scope itself,
+    /// because the iOS folder picker returns a security-scoped URL.
+    @discardableResult
+    func saveAll(to dir: URL) -> [URL] {
+        let accessing = dir.startAccessingSecurityScopedResource()
+        defer { if accessing { dir.stopAccessingSecurityScopedResource() } }
+
+        var used = Set<String>()
+        var written: [URL] = []
+        var failures: [String] = []
+        for file in embeddedFiles {
+            let dest = uniqueDestination(for: file.name, in: dir, used: &used)
+            do {
+                try file.data.write(to: dest)
+                written.append(dest)
+            } catch {
+                failures.append("\(file.name): \(error.localizedDescription)")
+            }
+        }
+
+        if !failures.isEmpty {
+            loadError = "Couldn’t save \(failures.count) of \(embeddedFiles.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
+        }
+        return written
+    }
+
+    #if os(macOS)
     // MARK: - Panels
 
     func presentOpenPanel() {
@@ -153,26 +185,12 @@ final class AppState: ObservableObject {
             return
         }
 
-        var used = Set<String>()
-        var written: [URL] = []
-        var failures: [String] = []
-        for file in embeddedFiles {
-            let dest = uniqueDestination(for: file.name, in: dir, used: &used)
-            do {
-                try file.data.write(to: dest)
-                written.append(dest)
-            } catch {
-                failures.append("\(file.name): \(error.localizedDescription)")
-            }
-        }
-
+        let written = saveAll(to: dir)
         if !written.isEmpty {
             NSWorkspace.shared.activateFileViewerSelecting(written)
         }
-        if !failures.isEmpty {
-            loadError = "Couldn’t save \(failures.count) of \(embeddedFiles.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
-        }
     }
+    #endif
 
     /// A destination in `dir` that collides with neither files already on disk
     /// nor names used earlier in this same save. Case-insensitive to match

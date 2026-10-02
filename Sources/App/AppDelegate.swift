@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 @MainActor
@@ -25,3 +26,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 }
+#endif

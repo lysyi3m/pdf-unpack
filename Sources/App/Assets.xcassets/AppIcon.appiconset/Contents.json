@@ -1,5 +1,6 @@
 {
   "images" : [
+    { "idiom" : "universal", "platform" : "ios", "size" : "1024x1024", "filename" : "icon_ios_1024.png" },
     { "idiom" : "mac", "size" : "16x16", "scale" : "1x", "filename" : "icon_16x16.png" },
     { "idiom" : "mac", "size" : "16x16", "scale" : "2x", "filename" : "icon_16x16@2x.png" },
     { "idiom" : "mac", "size" : "32x32", "scale" : "1x", "filename" : "icon_32x32.png" },

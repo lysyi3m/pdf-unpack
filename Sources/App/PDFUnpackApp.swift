@@ -1,15 +1,22 @@
 import SwiftUI
+#if os(macOS)
 import AppKit
+#endif
+
+let privacyPolicyURL = URL(string: "https://github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md")!
 
 @main
 struct PDFUnpackApp: App {
+    #if os(macOS)
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    #endif
     @StateObject private var state = AppState.shared
 
     // One window, one document: AppState holds a single document, and Open With, Services,
     // drag-and-drop and File ▸ Open all load into it. A WindowGroup would open a new window
     // for every file Finder hands over, each rendering the same shared state.
     var body: some Scene {
+        #if os(macOS)
         Window("PDF Unpack", id: "main") {
             ContentView()
                 .environmentObject(state)
@@ -33,11 +40,23 @@ struct PDFUnpackApp: App {
             // Replacing the group drops the default Help item on purpose: with no help book, it
             // only shows "Help isn't available for PDF Unpack."
             CommandGroup(replacing: .help) {
-                Link("Privacy Policy", destination: URL(string: "https://github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md")!)
+                Link("Privacy Policy", destination: privacyPolicyURL)
             }
         }
+        #else
+        // iOS has no Window scene. Info.plist turns off multiple scenes, so this group still
+        // holds one window.
+        WindowGroup {
+            ContentView()
+                .environmentObject(state)
+                // Files and the share sheet hand over PDFs here.
+                .onOpenURL { state.load(url: $0) }
+        }
+        #endif
     }
 }
+
+#if os(macOS)
 
 /// Standard About panel (icon / name / version / copyright) plus a centered
 /// credits block with a clickable link to the project repo.
@@ -64,3 +83,4 @@ private func showAboutPanel() {
     NSApp.orderFrontStandardAboutPanel(options: [.credits: credits])
     NSApp.activate(ignoringOtherApps: true)
 }
+#endif

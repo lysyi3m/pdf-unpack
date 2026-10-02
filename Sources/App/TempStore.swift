@@ -5,7 +5,8 @@ import Synchronization
 /// Writes embedded-file bytes to a per-session temp directory on demand and caches
 /// the resulting URLs. Quick Look and drag-out both need a real file on disk;
 /// this defers that write until first use so large portfolios don't hit disk
-/// eagerly. The session directory is removed on app termination.
+/// eagerly. The session directory is removed on app termination (macOS) or on the
+/// next launch (iOS).
 ///
 /// Called from the main actor and from drag-out's file export, which runs off it,
 /// so all mutable state sits behind one `Mutex`.
@@ -21,8 +22,17 @@ final class TempStore: Sendable {
     private let state = Mutex(State())
 
     private init() {
-        sessionDir = FileManager.default.temporaryDirectory
-            .appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
+        let temp = FileManager.default.temporaryDirectory
+        #if os(iOS)
+        // iOS ends a suspended app without a termination callback, so `cleanup()` seldom runs
+        // there. Remove earlier sessions' directories instead. Only one copy of an iOS app runs
+        // at a time, so none of them is in use.
+        let stale = (try? FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)) ?? []
+        for dir in stale where dir.lastPathComponent.hasPrefix("PDFUnpack-") {
+            try? FileManager.default.removeItem(at: dir)
+        }
+        #endif
+        sessionDir = temp.appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
     }
 
     /// Materialize `file` to disk (once) and return its file URL.

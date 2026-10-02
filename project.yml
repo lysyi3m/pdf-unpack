@@ -1,6 +1,7 @@
 # PDF Unpack — XcodeGen project spec. Regenerate with `make generate`.
 # Three targets: UI-free core framework (PDFUnpackKit), the SwiftUI app, and
-# tests that @testable-import the core.
+# tests that @testable-import the core. The framework and the app build for macOS and iOS;
+# the tests run on macOS.
 
 name: PDF Unpack
 
@@ -9,6 +10,7 @@ options:
   developmentLanguage: en
   deploymentTarget:
     macOS: "26.0"
+    iOS: "26.0"
 
 configFiles:
   Debug: Config/Base.xcconfig
@@ -24,7 +26,8 @@ settings:
 targets:
   PDFUnpackKit:
     type: framework
-    platform: macOS
+    platform: auto
+    supportedDestinations: [macOS, iOS]
     sources:
       - Sources/Kit
     settings:
@@ -35,7 +38,8 @@ targets:
 
   PDF Unpack:
     type: application
-    platform: macOS
+    platform: auto
+    supportedDestinations: [macOS, iOS]
     sources:
       - Sources/App
     dependencies:
@@ -44,6 +48,17 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdf-unpack
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        # Required by the Mac App Store. User-selected read-write covers files chosen in the
+        # Open and Save panels; drag and drop, Open With and Services grant access themselves.
+        # iOS sandboxes every app, so both are macOS-only.
+        "ENABLE_APP_SANDBOX[sdk=macosx*]": "YES"
+        "ENABLE_USER_SELECTED_FILES[sdk=macosx*]": readwrite
+        # A multiplatform target gets the iOS runpath; a macOS app keeps frameworks in
+        # Contents/Frameworks, one level above the executable.
+        "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks"
+    # One Info.plist serves both platforms. Each OS ignores the other's keys: NSServices and
+    # LSApplicationCategoryType on iOS, the UI* keys on macOS. Xcode adds the minimum OS
+    # version key for each platform from its deployment target.
     info:
       path: Config/Info.plist
       properties:
@@ -51,14 +66,30 @@ targets:
         CFBundleName: PDF Unpack
         CFBundleShortVersionString: "$(MARKETING_VERSION)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
-        LSMinimumSystemVersion: "$(MACOSX_DEPLOYMENT_TARGET)"
         LSApplicationCategoryType: public.app-category.utilities
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations~iphone:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # One window, one document (invariant 7): a second iPad window would render the same
+        # shared AppState.
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false
+        # iOS hands over the original file with a security scope, rather than a copy in the
+        # app's Inbox folder.
+        LSSupportsOpeningDocumentsInPlace: true
         # Encrypted PDFs are unlocked through CoreGraphics (CGPDFDocument), which is OS-provided
         # encryption and exempt, so App Store Connect does not ask the export-compliance
         # questions on each upload.
         ITSAppUsesNonExemptEncryption: false
         NSHumanReadableCopyright: "© 2026 Emil Kashkevich · MIT License"
-        # Finder "Open With ▸ PDF Unpack" for PDFs
+        # Finder "Open With ▸ PDF Unpack" on macOS; PDF Unpack in the share sheet on iOS
         CFBundleDocumentTypes:
           - CFBundleTypeName: PDF Document
             CFBundleTypeRole: Viewer
@@ -73,13 +104,6 @@ targets:
             NSPortName: PDF Unpack
             NSSendFileTypes:
               - com.adobe.pdf
-    entitlements:
-      path: Config/PDFUnpack.entitlements
-      properties:
-        # Required by the Mac App Store. user-selected.read-write covers files chosen in the
-        # Open and Save panels; drag and drop, Open With and Services grant access themselves.
-        com.apple.security.app-sandbox: true
-        com.apple.security.files.user-selected.read-write: true
 
   PDFUnpackTests:
     type: bundle.unit-test
