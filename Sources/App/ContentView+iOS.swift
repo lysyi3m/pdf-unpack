@@ -64,6 +64,9 @@ struct ContentView: View {
         } else if state.needsPassword {
             // The title already names the locked PDF; the password sheet covers the rest.
             Color.clear
+        } else if state.isBusy {
+            ProgressView()
+                .controlSize(.large)
         } else {
             emptyView
         }
@@ -110,8 +113,12 @@ struct ContentView: View {
             }
             .contextMenu { actions(for: file) }
         }
+        .disabled(state.isBusy)
         .overlay {
-            if state.embeddedFiles.isEmpty {
+            if state.isBusy {
+                ProgressView()
+                    .controlSize(.large)
+            } else if state.embeddedFiles.isEmpty {
                 ContentUnavailableView(
                     "No Embedded Files",
                     systemImage: "tray",
@@ -141,9 +148,11 @@ struct ContentView: View {
         if isLoaded {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 Button("Open…", systemImage: "folder") { present(.pdf) }
+                    .disabled(state.isBusy)
 
                 if !state.embeddedFiles.isEmpty {
                     Button("Save All…", systemImage: "square.and.arrow.down.on.square") { present(.folder) }
+                        .disabled(state.isBusy)
                 }
             }
         }
@@ -155,11 +164,13 @@ struct ContentView: View {
     }
 
     private func saveAll(to dir: URL) {
-        let written = state.saveAll(to: dir)
-        // A partial failure already raises the error alert, which counts the failures.
-        guard !written.isEmpty, state.loadError == nil else { return }
-        // No folder name: a provider's root folder has an on-disk name, not the one Files shows.
-        savedMessage = "Saved \(count(written.count))."
+        Task {
+            let written = await state.saveAll(to: dir)
+            // A partial failure already raises the error alert, which counts the failures.
+            guard !written.isEmpty, state.loadError == nil else { return }
+            // No folder name: a provider's root folder has an on-disk name, not the one Files shows.
+            savedMessage = "Saved \(count(written.count))."
+        }
     }
 
     private var subtitle: String {
