@@ -19,8 +19,6 @@ final class AppState: ObservableObject {
     @Published var loadError: String?
 
     private var extractor: EmbeddedFileExtractor?
-    private var currentURL: URL?
-    private var accessingScope = false
 
     /// Selected embedded files, in list order.
     var selectedEmbeddedFiles: [EmbeddedFile] {
@@ -32,15 +30,9 @@ final class AppState: ObservableObject {
     func load(url: URL) {
         reset()
 
-        // Dropped/opened URLs are security-scoped under the sandbox; balance this
-        // with stopAccessing in reset() when the document is replaced.
-        let accessing = url.startAccessingSecurityScopedResource()
-
         do {
-            let extractor = try EmbeddedFileExtractor(url: url)
+            let extractor = try EmbeddedFileExtractor(data: Self.readCoordinated(url))
             self.extractor = extractor
-            self.currentURL = url
-            self.accessingScope = accessing
             self.fileName = url.lastPathComponent
 
             if extractor.isEncrypted && !extractor.isUnlocked {
@@ -49,7 +41,6 @@ final class AppState: ObservableObject {
                 finishLoading()
             }
         } catch {
-            if accessing { url.stopAccessingSecurityScopedResource() }
             fileName = nil
             loadError = "Couldn’t open “\(url.lastPathComponent)”. It may be corrupt or not a PDF."
         }
@@ -81,25 +72,32 @@ final class AppState: ObservableObject {
             embeddedFiles = try extractor.extractEmbeddedFiles().map(EmbeddedFile.init)
             selection = embeddedFiles.first.map { [$0.id] } ?? []
         } catch {
-            // Release the document + its security scope rather than leaving a
-            // half-loaded state alive, then surface the error.
+            // Release the document rather than leaving a half-loaded state alive, then
+            // surface the error.
             reset()
             loadError = "Couldn’t read the embedded files in this PDF."
         }
     }
 
-    /// Balance the active document's security-scoped access. Also called at app
-    /// termination so the scope isn't left open when the process exits.
-    func releaseSecurityScope() {
-        if accessingScope, let url = currentURL {
-            url.stopAccessingSecurityScopedResource()
+    /// Reads the whole PDF under file coordination. A security scope only grants permission;
+    /// iCloud and third-party file providers also require coordinated access. The snapshot
+    /// means a later unlock or extraction never touches the provider again.
+    private static func readCoordinated(_ url: URL) throws -> Data {
+        // Opened, dropped and shared URLs are security-scoped under the sandbox.
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+
+        var coordinationError: NSError?
+        var result: Result<Data, Error> = .failure(CocoaError(.fileReadUnknown))
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) {
+            readURL in
+            result = Result { try Data(contentsOf: readURL) }
         }
-        accessingScope = false
-        currentURL = nil
+        if let coordinationError { throw coordinationError }
+        return try result.get()
     }
 
     private func reset() {
-        releaseSecurityScope()
         extractor = nil
         embeddedFiles = []
         selection = []
@@ -112,23 +110,31 @@ final class AppState: ObservableObject {
 
     /// Write every embedded file into `dir` under a free name and return the URLs written.
     /// Failures surface through `loadError`. Balances the folder's security scope itself,
-    /// because the iOS folder picker returns a security-scoped URL.
+    /// because the iOS folder picker returns a security-scoped URL, and coordinates the
+    /// writes, because that folder can belong to a file provider.
     @discardableResult
     func saveAll(to dir: URL) -> [URL] {
         let accessing = dir.startAccessingSecurityScopedResource()
         defer { if accessing { dir.stopAccessingSecurityScopedResource() } }
 
-        var used = Set<String>()
         var written: [URL] = []
         var failures: [String] = []
-        for file in embeddedFiles {
-            let dest = uniqueDestination(for: file.name, in: dir, used: &used)
-            do {
-                try file.data.write(to: dest)
-                written.append(dest)
-            } catch {
-                failures.append("\(file.name): \(error.localizedDescription)")
+        var coordinationError: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: dir, options: [], error: &coordinationError) {
+            dir in
+            var used = Set<String>()
+            for file in embeddedFiles {
+                let dest = uniqueDestination(for: file.name, in: dir, used: &used)
+                do {
+                    try file.data.write(to: dest)
+                    written.append(dest)
+                } catch {
+                    failures.append("\(file.name): \(error.localizedDescription)")
+                }
             }
+        }
+        if let coordinationError {
+            failures = [coordinationError.localizedDescription]
         }
 
         if !failures.isEmpty {

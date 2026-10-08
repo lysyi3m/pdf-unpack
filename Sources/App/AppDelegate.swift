@@ -18,7 +18,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        AppState.shared.releaseSecurityScope()
         TempStore.shared.cleanup()
     }
 

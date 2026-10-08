@@ -12,6 +12,12 @@ struct PDFUnpackApp: App {
     #endif
     @StateObject private var state = AppState.shared
 
+    #if os(iOS)
+    init() {
+        TempStore.removeStaleSessions()
+    }
+    #endif
+
     // One window, one document: AppState holds a single document, and Open With, Services,
     // drag-and-drop and File ▸ Open all load into it. A WindowGroup would open a new window
     // for every file Finder hands over, each rendering the same shared state.

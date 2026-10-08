@@ -49,6 +49,22 @@ final class EmbeddedFileExtractorTests: XCTestCase {
         XCTAssertTrue(extractor.isUnlocked)
     }
 
+    // MARK: - Opening from data
+
+    func testDataInitUnlocksAndExtracts() throws {
+        let extractor = try EmbeddedFileExtractor(data: Data(contentsOf: Self.fixtureURL()))
+        XCTAssertTrue(extractor.isEncrypted)
+        XCTAssertTrue(extractor.unlock(password: Self.password))
+        let names = Set(try extractor.extractEmbeddedFiles().map(\.name))
+        XCTAssertEqual(names, ["hello.txt", "data.csv", "pixel.png"])
+    }
+
+    func testDataInitRejectsNonPDF() {
+        XCTAssertThrowsError(try EmbeddedFileExtractor(data: Data("not a pdf".utf8))) { error in
+            XCTAssertEqual(error as? PDFError, .cannotOpen)
+        }
+    }
+
     // MARK: - Extraction
 
     private func unlockedExtractor() throws -> EmbeddedFileExtractor {

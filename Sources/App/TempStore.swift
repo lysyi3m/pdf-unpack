@@ -22,18 +22,22 @@ final class TempStore: Sendable {
     private let state = Mutex(State())
 
     private init() {
+        sessionDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
+    }
+
+    #if os(iOS)
+    /// iOS ends a suspended app without a termination callback, so `cleanup()` seldom runs
+    /// there. The app calls this at launch instead, before any session directory exists. Only
+    /// one copy of an iOS app runs at a time, so none of the removed directories is in use.
+    static func removeStaleSessions() {
         let temp = FileManager.default.temporaryDirectory
-        #if os(iOS)
-        // iOS ends a suspended app without a termination callback, so `cleanup()` seldom runs
-        // there. Remove earlier sessions' directories instead. Only one copy of an iOS app runs
-        // at a time, so none of them is in use.
         let stale = (try? FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)) ?? []
         for dir in stale where dir.lastPathComponent.hasPrefix("PDFUnpack-") {
             try? FileManager.default.removeItem(at: dir)
         }
-        #endif
-        sessionDir = temp.appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
     }
+    #endif
 
     /// Materialize `file` to disk (once) and return its file URL.
     func materialize(_ file: EmbeddedFile) throws -> URL {

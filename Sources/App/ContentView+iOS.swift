@@ -34,10 +34,17 @@ struct ContentView: View {
             isPresented: $showingImporter,
             allowedContentTypes: importTarget == .pdf ? [.pdf] : [.folder]
         ) { result in
-            guard case .success(let url) = result else { return }
-            switch importTarget {
-            case .pdf: state.load(url: url)
-            case .folder: saveAll(to: url)
+            switch (result, importTarget) {
+            case (.success(let url), .pdf):
+                state.load(url: url)
+            case (.success(let url), .folder):
+                saveAll(to: url)
+            case (.failure(let error), _) where (error as? CocoaError)?.code == .userCancelled:
+                break
+            case (.failure(let error), .pdf):
+                state.loadError = "Couldn’t open the PDF: \(error.localizedDescription)"
+            case (.failure(let error), .folder):
+                state.loadError = "Couldn’t open the folder: \(error.localizedDescription)"
             }
         }
         .sheet(isPresented: $state.needsPassword) {

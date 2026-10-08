@@ -90,6 +90,8 @@ whole.
 6. On macOS, prefer `NSOpenPanel` / `NSSavePanel` over `.fileExporter` for save flows. On iOS,
    Save… exports through `UIDocumentPickerViewController(forExporting:)`, and Save All… picks a
    folder with `.fileImporter` and writes through the same never-overwrite path as macOS.
+   Opening reads the whole PDF under `NSFileCoordinator`, and Save All coordinates its writes:
+   a picked URL can belong to a file provider, and a security scope alone does not coordinate.
 7. **One window, one document.** On macOS the app is a single `Window` scene over the shared
    `AppState`, and every entry point — Open With, Services, drag-and-drop, File ▸ Open — loads
    into it. Do not switch to `WindowGroup` there: SwiftUI then opens a new window for each file
