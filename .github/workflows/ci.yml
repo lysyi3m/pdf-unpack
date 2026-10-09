@@ -33,3 +33,6 @@ jobs:
       # test action, so a broken app would otherwise pass.
       - name: Build
         run: make build
+
+      - name: Build (iOS)
+        run: make build-ios

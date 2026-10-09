@@ -37,6 +37,13 @@ public final class EmbeddedFileExtractor {
         self.doc = d
     }
 
+    /// Opens a PDF already read into memory, so later calls never touch the source file again.
+    public init(data: Data) throws {
+        guard let provider = CGDataProvider(data: data as CFData),
+              let d = CGPDFDocument(provider) else { throw PDFError.cannotOpen }
+        self.doc = d
+    }
+
     public var isEncrypted: Bool { doc.isEncrypted }
     public var isUnlocked: Bool { doc.isUnlocked }
 

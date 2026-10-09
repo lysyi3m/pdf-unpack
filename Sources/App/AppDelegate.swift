@@ -1,3 +1,4 @@
+#if os(macOS)
 import AppKit
 
 @MainActor
@@ -17,7 +18,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        AppState.shared.releaseSecurityScope()
         TempStore.shared.cleanup()
     }
 
@@ -25,3 +25,4 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         true
     }
 }
+#endif

@@ -1,4 +1,6 @@
+#if os(macOS)
 import AppKit
+#endif
 import SwiftUI
 import UniformTypeIdentifiers
 import PDFUnpackKit
@@ -15,10 +17,14 @@ final class AppState: ObservableObject {
     @Published var embeddedFiles: [EmbeddedFile] = []
     @Published var selection: Set<EmbeddedFile.ID> = []
     @Published var loadError: String?
+    /// True while a PDF is read or Save All writes. Both run off the main actor, because a
+    /// file provider can make coordination wait for a download.
+    @Published private(set) var isBusy = false
 
     private var extractor: EmbeddedFileExtractor?
-    private var currentURL: URL?
-    private var accessingScope = false
+    /// Identifies the latest load, so a slow read that a newer load or a close replaced is
+    /// dropped when it finishes.
+    private var loadToken = UUID()
 
     /// Selected embedded files, in list order.
     var selectedEmbeddedFiles: [EmbeddedFile] {
@@ -29,27 +35,29 @@ final class AppState: ObservableObject {
 
     func load(url: URL) {
         reset()
+        let token = UUID()
+        loadToken = token
+        isBusy = true
 
-        // Dropped/opened URLs are security-scoped under the sandbox; balance this
-        // with stopAccessing in reset() when the document is replaced.
-        let accessing = url.startAccessingSecurityScopedResource()
+        Task {
+            let data = await Task.detached { Result { try Self.readCoordinated(url) } }.value
+            guard loadToken == token else { return }
+            isBusy = false
 
-        do {
-            let extractor = try EmbeddedFileExtractor(url: url)
-            self.extractor = extractor
-            self.currentURL = url
-            self.accessingScope = accessing
-            self.fileName = url.lastPathComponent
+            do {
+                let extractor = try EmbeddedFileExtractor(data: data.get())
+                self.extractor = extractor
+                self.fileName = url.lastPathComponent
 
-            if extractor.isEncrypted && !extractor.isUnlocked {
-                needsPassword = true
-            } else {
-                finishLoading()
+                if extractor.isEncrypted && !extractor.isUnlocked {
+                    needsPassword = true
+                } else {
+                    finishLoading()
+                }
+            } catch {
+                fileName = nil
+                loadError = "Couldn’t open “\(url.lastPathComponent)”. It may be corrupt or not a PDF."
             }
-        } catch {
-            if accessing { url.stopAccessingSecurityScopedResource() }
-            fileName = nil
-            loadError = "Couldn’t open “\(url.lastPathComponent)”. It may be corrupt or not a PDF."
         }
     }
 
@@ -79,25 +87,34 @@ final class AppState: ObservableObject {
             embeddedFiles = try extractor.extractEmbeddedFiles().map(EmbeddedFile.init)
             selection = embeddedFiles.first.map { [$0.id] } ?? []
         } catch {
-            // Release the document + its security scope rather than leaving a
-            // half-loaded state alive, then surface the error.
+            // Release the document rather than leaving a half-loaded state alive, then
+            // surface the error.
             reset()
             loadError = "Couldn’t read the embedded files in this PDF."
         }
     }
 
-    /// Balance the active document's security-scoped access. Also called at app
-    /// termination so the scope isn't left open when the process exits.
-    func releaseSecurityScope() {
-        if accessingScope, let url = currentURL {
-            url.stopAccessingSecurityScopedResource()
+    /// Reads the whole PDF under file coordination. A security scope only grants permission;
+    /// iCloud and third-party file providers also require coordinated access. The snapshot
+    /// means a later unlock or extraction never touches the provider again.
+    nonisolated private static func readCoordinated(_ url: URL) throws -> Data {
+        // Opened, dropped and shared URLs are security-scoped under the sandbox.
+        let accessing = url.startAccessingSecurityScopedResource()
+        defer { if accessing { url.stopAccessingSecurityScopedResource() } }
+
+        var coordinationError: NSError?
+        var result: Result<Data, Error> = .failure(CocoaError(.fileReadUnknown))
+        NSFileCoordinator().coordinate(readingItemAt: url, options: [], error: &coordinationError) {
+            readURL in
+            result = Result { try Data(contentsOf: readURL) }
         }
-        accessingScope = false
-        currentURL = nil
+        if let coordinationError { throw coordinationError }
+        return try result.get()
     }
 
     private func reset() {
-        releaseSecurityScope()
+        loadToken = UUID()
+        isBusy = false
         extractor = nil
         embeddedFiles = []
         selection = []
@@ -106,6 +123,53 @@ final class AppState: ObservableObject {
         fileName = nil
     }
 
+    // MARK: - Saving
+
+    /// Write every embedded file into `dir` under a free name and return the URLs written.
+    /// Failures surface through `loadError`. The writes run off the main actor.
+    @discardableResult
+    func saveAll(to dir: URL) async -> [URL] {
+        let files = embeddedFiles
+        isBusy = true
+        let (written, failures) = await Task.detached { Self.write(files, into: dir) }.value
+        isBusy = false
+
+        if !failures.isEmpty {
+            loadError = "Couldn’t save \(failures.count) of \(files.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
+        }
+        return written
+    }
+
+    /// Balances the folder's security scope itself, because the iOS folder picker returns a
+    /// security-scoped URL, and coordinates the writes, because that folder can belong to a
+    /// file provider.
+    nonisolated private static func write(_ files: [EmbeddedFile], into dir: URL) -> (written: [URL], failures: [String]) {
+        let accessing = dir.startAccessingSecurityScopedResource()
+        defer { if accessing { dir.stopAccessingSecurityScopedResource() } }
+
+        var written: [URL] = []
+        var failures: [String] = []
+        var coordinationError: NSError?
+        NSFileCoordinator().coordinate(writingItemAt: dir, options: [], error: &coordinationError) {
+            dir in
+            var used = Set<String>()
+            for file in files {
+                let dest = uniqueDestination(for: file.name, in: dir, used: &used)
+                do {
+                    try file.data.write(to: dest)
+                    written.append(dest)
+                } catch {
+                    failures.append("\(file.name): \(error.localizedDescription)")
+                }
+            }
+        }
+        if let coordinationError {
+            failures = [coordinationError.localizedDescription]
+        }
+        return (written, failures)
+    }
+
+    #if os(macOS)
     // MARK: - Panels
 
     func presentOpenPanel() {
@@ -153,31 +217,19 @@ final class AppState: ObservableObject {
             return
         }
 
-        var used = Set<String>()
-        var written: [URL] = []
-        var failures: [String] = []
-        for file in embeddedFiles {
-            let dest = uniqueDestination(for: file.name, in: dir, used: &used)
-            do {
-                try file.data.write(to: dest)
-                written.append(dest)
-            } catch {
-                failures.append("\(file.name): \(error.localizedDescription)")
+        Task {
+            let written = await saveAll(to: dir)
+            if !written.isEmpty {
+                NSWorkspace.shared.activateFileViewerSelecting(written)
             }
         }
-
-        if !written.isEmpty {
-            NSWorkspace.shared.activateFileViewerSelecting(written)
-        }
-        if !failures.isEmpty {
-            loadError = "Couldn’t save \(failures.count) of \(embeddedFiles.count) file(s) to \(dir.path):\n\(failures.joined(separator: "\n"))"
-        }
     }
+    #endif
 
     /// A destination in `dir` that collides with neither files already on disk
     /// nor names used earlier in this same save. Case-insensitive to match
     /// typical macOS volumes; never overwrites an existing file.
-    private func uniqueDestination(for rawName: String, in dir: URL, used: inout Set<String>) -> URL {
+    nonisolated private static func uniqueDestination(for rawName: String, in dir: URL, used: inout Set<String>) -> URL {
         let sanitized = Filename.sanitized(rawName)
         let ns = sanitized as NSString
         let ext = ns.pathExtension

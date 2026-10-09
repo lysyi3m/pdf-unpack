@@ -1,7 +1,8 @@
 # PDF Unpack — working rules for coding agents
 
-Native macOS app that opens a PDF — password-protected or not — and extracts the files embedded
-inside it, with Quick Look preview, save, drag-out and Finder integration.
+Native macOS and iOS app that opens a PDF — password-protected or not — and extracts the files
+embedded inside it, with Quick Look preview, save and share, plus drag-out and Finder integration
+on the Mac.
 
 ## Ground rules
 
@@ -46,9 +47,13 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
 
 ## Stack
 
-- SwiftUI app lifecycle with AppKit where needed. No iOS target.
-- Apple frameworks only: SwiftUI, AppKit, CoreGraphics (CGPDF), Quartz/QuickLookUI,
-  UniformTypeIdentifiers, Foundation.
+- SwiftUI app lifecycle, with AppKit on macOS and UIKit on iOS where needed. macOS and iOS
+  (iPhone and iPad): both product targets are multiplatform (`supportedDestinations` in
+  `project.yml`). Platform-specific code sits behind `#if os(macOS)` / `#if os(iOS)` in the app
+  target only. The iOS window has its own `ContentView+iOS.swift` and `AppState+iOS.swift`; the
+  test bundle runs on macOS.
+- Apple frameworks only: SwiftUI, AppKit, UIKit, CoreGraphics (CGPDF), Quartz/QuickLookUI,
+  QuickLook, UniformTypeIdentifiers, Foundation.
 - Two product targets: `PDFUnpackKit` (`Sources/Kit`, UI-free core) and `PDF Unpack`
   (`Sources/App`, the SwiftUI app). `PDFUnpackTests` covers the core.
 - Tooling, not shipped: XcodeGen for the project, `pikepdf` (Python) to generate fixtures.
@@ -77,15 +82,22 @@ whole.
    original name stays in the UI. Collisions get a numeric suffix before the extension, matched
    case-insensitively because typical macOS volumes are.
 4. **Materialize bytes lazily.** Quick Look and drag-out need a real file on disk. `TempStore`
-   defers that write until first use and removes the session directory on termination, so a
-   large portfolio does not hit disk eagerly.
+   defers that write until first use and removes the session directory on termination (macOS)
+   or on the next launch (iOS, which seldom reports termination), so a large portfolio does not
+   hit disk eagerly.
 5. **Saving never overwrites.** Save All picks a free name rather than replacing an existing
    file.
-6. Prefer `NSOpenPanel` / `NSSavePanel` over `.fileExporter` for save flows.
-7. **One window, one document.** The app is a single `Window` scene over the shared
+6. On macOS, prefer `NSOpenPanel` / `NSSavePanel` over `.fileExporter` for save flows. On iOS,
+   Save… exports through `UIDocumentPickerViewController(forExporting:)`, and Save All… picks a
+   folder with `.fileImporter` and writes through the same never-overwrite path as macOS.
+   Opening reads the whole PDF under `NSFileCoordinator`, and Save All coordinates its writes:
+   a picked URL can belong to a file provider, and a security scope alone does not coordinate.
+7. **One window, one document.** On macOS the app is a single `Window` scene over the shared
    `AppState`, and every entry point — Open With, Services, drag-and-drop, File ▸ Open — loads
-   into it. Do not switch to `WindowGroup`: SwiftUI then opens a new window for each file Finder
-   hands over, and every window renders the same document.
+   into it. Do not switch to `WindowGroup` there: SwiftUI then opens a new window for each file
+   Finder hands over, and every window renders the same document. iOS has no `Window` scene, so
+   it uses `WindowGroup` with `UIApplicationSupportsMultipleScenes` off, which keeps the iPad to
+   one window.
 
 ## Secrets
 
@@ -95,10 +107,11 @@ and `*.private.pdf` are git-ignored — keep it that way.
 ## Housekeeping
 
 - **Quote the project path** in every command — `"PDF Unpack.xcodeproj"` contains a space.
-- **The app is sandboxed** (`app-sandbox` plus `files.user-selected.read-write`), as the Mac App
-  Store requires. Every path works sandboxed: Finder open, Services, drag in, password unlock,
-  Quick Look (text and image), Save…, Save All…, drag out and Share. Temp files live in the app
-  container, and files the app writes carry `com.apple.quarantine`. `make build` and CI build
+- **The Mac app is sandboxed** (`ENABLE_APP_SANDBOX` plus `ENABLE_USER_SELECTED_FILES`, set for
+  the macOS SDK only), as the Mac App Store requires. iOS sandboxes every app. Every path works
+  sandboxed: Finder open, Services, drag in, password unlock, Quick Look (text and image), Save…,
+  Save All…, drag out and Share. Temp files live in the app container, and files the app writes
+  carry `com.apple.quarantine`. `make build` and CI build
   unsigned, so they never run sandboxed; a signed ⌘R build does.
 - **Naming.** Display name `PDF Unpack`; code identifiers `PDFUnpack` (app struct
   `PDFUnpackApp`, temp dir prefix `PDFUnpack-<uuid>`, Services handler `openInPDFUnpack`);
@@ -107,13 +120,20 @@ and `*.private.pdf` are git-ignored — keep it that way.
   `github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md`. Never move or rename it, and keep its
   claims true of the code.
 - Finder integration is declared in `project.yml`, not in code: `CFBundleDocumentTypes` gives
-  *Open With*, `NSServices` gives the right-click *Open in PDF Unpack* item.
+  *Open With*, `NSServices` gives the right-click *Open in PDF Unpack* item. On iOS the same
+  `CFBundleDocumentTypes` plus `LSSupportsOpeningDocumentsInPlace` put PDF Unpack in the share
+  sheet for PDFs, and `.onOpenURL` loads what it hands over.
 - **Verify GUI changes in the running app.** `make build`, then
   `open -a "build/Build/Products/Release/PDF Unpack.app" fixtures/sample-mixed.pdf`. System
   Events reaches the menus (View ▸ Quick Look, File ▸ Open…) and keystrokes;
   `CGWindowListCopyWindowInfo` gives window ids, and `screencapture -l <id>` captures one window.
   Synthetic drags are unreliable, and the Services item routes to whichever registered copy of
   the app answers, so drag-and-drop and Services still need a manual check.
+- **Verify iOS changes in the Simulator.** `make run-ios` (`SIM="…"` picks an iPhone or iPad).
+  To get fixtures into the Files picker, copy them into the Simulator's
+  `data/Containers/Shared/AppGroup/*/File Provider Storage/` (it exists after Files has launched
+  once); they show under On My iPhone / iPad. Sharing a PDF into the app from another app still
+  needs a manual check on a device.
 - **Fixtures are generated.** `make fixtures` rebuilds `fixtures/` from
   `tools/make_fixtures.py`. The names, bytes and dates it declares are asserted by the tests;
   change both together. Commit `sample-protected.pdf` only when its contents change — its

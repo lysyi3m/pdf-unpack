@@ -1,3 +1,4 @@
+#if os(macOS)
 import SwiftUI
 import AppKit
 import PDFUnpackKit
@@ -42,6 +43,9 @@ struct ContentView: View {
     private var content: some View {
         if isLoaded {
             loadedView
+        } else if state.isBusy {
+            ProgressView()
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             DropView()
         }
@@ -58,8 +62,11 @@ struct ContentView: View {
                     Button("Save…") { state.save(file) }
                 }
         }
+        .disabled(state.isBusy)
         .overlay {
-            if state.embeddedFiles.isEmpty {
+            if state.isBusy {
+                ProgressView()
+            } else if state.embeddedFiles.isEmpty {
                 ContentUnavailableView(
                     "No Embedded Files",
                     systemImage: "tray",
@@ -102,6 +109,7 @@ struct ContentView: View {
             } label: {
                 Label("Open…", systemImage: "folder")
             }
+            .disabled(state.isBusy)
 
             if isLoaded && !state.embeddedFiles.isEmpty {
                 Button {
@@ -109,6 +117,7 @@ struct ContentView: View {
                 } label: {
                     Label("Save All…", systemImage: "square.and.arrow.down")
                 }
+                .disabled(state.isBusy)
 
                 Button {
                     shareSelection()
@@ -167,3 +176,4 @@ struct ContentView: View {
         )
     }
 }
+#endif

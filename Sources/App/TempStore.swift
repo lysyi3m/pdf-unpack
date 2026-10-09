@@ -5,7 +5,8 @@ import Synchronization
 /// Writes embedded-file bytes to a per-session temp directory on demand and caches
 /// the resulting URLs. Quick Look and drag-out both need a real file on disk;
 /// this defers that write until first use so large portfolios don't hit disk
-/// eagerly. The session directory is removed on app termination.
+/// eagerly. The session directory is removed on app termination (macOS) or on the
+/// next launch (iOS).
 ///
 /// Called from the main actor and from drag-out's file export, which runs off it,
 /// so all mutable state sits behind one `Mutex`.
@@ -24,6 +25,19 @@ final class TempStore: Sendable {
         sessionDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("PDFUnpack-\(UUID().uuidString)", isDirectory: true)
     }
+
+    #if os(iOS)
+    /// iOS ends a suspended app without a termination callback, so `cleanup()` seldom runs
+    /// there. The app calls this at launch instead, before any session directory exists. Only
+    /// one copy of an iOS app runs at a time, so none of the removed directories is in use.
+    static func removeStaleSessions() {
+        let temp = FileManager.default.temporaryDirectory
+        let stale = (try? FileManager.default.contentsOfDirectory(at: temp, includingPropertiesForKeys: nil)) ?? []
+        for dir in stale where dir.lastPathComponent.hasPrefix("PDFUnpack-") {
+            try? FileManager.default.removeItem(at: dir)
+        }
+    }
+    #endif
 
     /// Materialize `file` to disk (once) and return its file URL.
     func materialize(_ file: EmbeddedFile) throws -> URL {

@@ -6,7 +6,8 @@
 
 <p align="center">
   Extract the files embedded inside a PDF — portfolios, e-invoices, and
-  password-protected documents. Native macOS, no third-party dependencies.
+  password-protected documents. Native macOS and iOS, no third-party
+  dependencies.
 </p>
 
 <p align="center">
@@ -27,16 +28,16 @@
 
 ## Features
 
-- **Open any PDF** — drag-and-drop, click to choose, ⌘O, or Finder's *Open With* / *Services*.
+- **Open any PDF** — drag-and-drop, click to choose, ⌘O, or Finder's *Open With* / *Services* on the Mac; choose one, or share it to PDF Unpack from Files or another app, on iPhone and iPad.
 - **Password-protected PDFs** — unlock with the user or owner password.
 - **List embedded files** with name, size, and modification date.
-- **Quick Look** — press Space (or ⌘Y) for the full macOS preview; ←/→ walk the list.
+- **Quick Look** — press Space (or ⌘Y) on the Mac, or tap a file on iPhone and iPad; move between files from the preview.
 - **Save** a file, **Save All…** to a folder (never overwrites existing files), or **Share** via the native share sheet.
-- **Drag out** any row straight to Finder or the Desktop.
+- **Drag out** any row straight to Finder or the Desktop (Mac).
 
 ## Requirements
 
-- macOS 26 or later
+- macOS 26 or later, or iOS 26 or later
 - Xcode 26 or later and XcodeGen, to build
 
 ## Build & run
@@ -48,7 +49,10 @@ make generate                # regenerate "PDF Unpack.xcodeproj" from project.ym
 open "PDF Unpack.xcodeproj"  # then press ⌘R
 ```
 
-Run `make` to list the other tasks (`test`, `build`, `fixtures`, `clean`).
+To try the iOS app, run `make run-ios` (or `make run-ios SIM="iPad Air 11-inch (M4)"`): it builds for
+the Simulator, installs the app and launches it. No Team is needed.
+
+Run `make` to list the other tasks (`test`, `build`, `build-ios`, `fixtures`, `clean`).
 
 `PDF Unpack.xcodeproj` is generated from [`project.yml`](project.yml); it is gitignored and must not
 be hand-edited. `make generate` projects `DEVELOPMENT_TEAM` from `.env` into
