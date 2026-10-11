@@ -39,11 +39,22 @@ contradicts a rule here, the repo-specific rule wins — and say so when you not
 - **Release from a release PR.** When `master` holds the scope to ship, one
   `chore(release): <version>` PR raises `MARKETING_VERSION` (`MAJOR.MINOR[.PATCH]`), raises
   `CURRENT_PROJECT_VERSION` by one (it never resets), and adds the version's section to
-  `CHANGELOG.md`. Archive the merge commit, upload it, and paste that section as the App Store
-  "What's New" text. A rejected build needs a fix and a new `CURRENT_PROJECT_VERSION` before the
-  next upload. When Apple approves the build, tag the archived commit with a signed
-  `v<version>` tag and push the tag. A build that only goes to TestFlight gets no tag. There are
-  no GitHub Releases.
+  `CHANGELOG.md`. Archive the merge commit and upload it. A rejected build needs a fix and a new
+  `CURRENT_PROJECT_VERSION` before the next upload. When Apple approves the build, tag the
+  archived commit with a signed `v<version>` tag and push the tag. A build that only goes to
+  TestFlight gets no tag. There are no GitHub Releases.
+- **`CHANGELOG.md` is the technical record.** It follows Keep a Changelog: newest first, one
+  `## <version> — <YYYY-MM-DD>` section per App Store release, dated the day its release PR
+  merges. Under it come `### Added`, `### Changed`, `### Removed` and `### Fixed`, in that order
+  and only those that apply. Each bullet states one change and ends with its PR, `(#42)`. A change
+  on one platform only starts with `macOS:` or `iOS:`. Tests, refactors, docs and CI stay out
+  unless a user can notice them. The first release's section says only `First release.` The
+  changelog is not the App Store "What's New" text.
+- **Store materials live in `app-store-materials`.** The private repo
+  `lysyi3m/app-store-materials`, cloned beside this one, holds the App Store listing, the
+  "What's New" text, the App Review notes, the screenshots and the tools that render and check
+  them. Before any App Store task, read its `AGENTS.md` and use its tools. Never add store
+  materials to this repo.
 
 ## Stack
 
