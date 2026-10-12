@@ -76,6 +76,7 @@ isolated in the UI-free, unit-tested `PDFUnpackKit` framework.
 | `Config/` | `Base.xcconfig`; `make generate` writes the rest (git-ignored) |
 | `fixtures/` | Synthetic test PDFs — see [`fixtures/README.md`](fixtures/README.md) |
 | `tools/` | `make_fixtures.py`, which generates `fixtures/` (build tooling, not shipped) |
+| `Scripts/` | `make-dev-icon.swift` — renders the Debug app's icon from `AppIcon` |
 
 ## Testing
 

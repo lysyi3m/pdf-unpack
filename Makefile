@@ -9,6 +9,8 @@ SIM     ?= iPhone 17
 SIM_APP := build/Build/Products/Debug-iphonesimulator/$(SCHEME).app
 LOCAL_XCCONFIG := Config/Local.xcconfig
 TEAM_SETTING   := ^DEVELOPMENT_TEAM = [A-Z0-9]{10}$$
+# A compiler warning fails `make` and CI. Xcode's ⌘R still only warns, so iterating stays fast.
+STRICT := SWIFT_TREAT_WARNINGS_AS_ERRORS=YES GCC_TREAT_WARNINGS_AS_ERRORS=YES
 
 .DEFAULT_GOAL := help
 .PHONY: help generate local-config test build build-ios run-ios fixtures clean
@@ -36,26 +38,26 @@ local-config: ## Project machine-local settings from .env into Config/Local.xcco
 
 test: generate ## Run the unit tests
 	xcodebuild test -project "$(PROJECT)" -scheme "$(SCHEME)" \
-		-destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
+		-destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO $(STRICT)
 
-build: generate ## Build a Release .app (compile check; unsigned)
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
-		-derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
+build: generate ## Build the dev .app (compile check; unsigned)
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Debug \
+		-derivedDataPath build CODE_SIGNING_ALLOWED=NO $(STRICT) clean build
 
-build-ios: generate ## Build a Release iOS app (compile check; unsigned)
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
-		-destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
+build-ios: generate ## Build the dev iOS app (compile check; unsigned)
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Debug \
+		-destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO $(STRICT) clean build
 
 # Ad-hoc signed, so no Team is needed. Opening the Simulator window is best effort: not every
 # Xcode install registers a Simulator app, and the device runs without it.
 run-ios: generate ## Build and launch on the iOS Simulator (SIM="iPhone 17")
 	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Debug \
 		-destination 'platform=iOS Simulator,name=$(SIM)' -derivedDataPath build \
-		CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= build
+		CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= $(STRICT) build
 	xcrun simctl bootstatus "$(SIM)" -b > /dev/null
 	-open -a Simulator
 	xcrun simctl install "$(SIM)" "$(SIM_APP)"
-	xcrun simctl launch "$(SIM)" com.mlkshkvch.pdf-unpack
+	xcrun simctl launch "$(SIM)" com.mlkshkvch.pdf-unpack.dev
 
 fixtures: ## Regenerate the test PDFs in fixtures/ (pikepdf goes into tools/.venv)
 	python3 -m venv $(VENV)
