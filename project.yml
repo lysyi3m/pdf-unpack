@@ -56,6 +56,23 @@ targets:
         # A multiplatform target gets the iOS runpath; a macOS app keeps frameworks in
         # Contents/Frameworks, one level above the executable.
         "LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]": "$(inherited) @executable_path/../Frameworks"
+      configs:
+        # The dev app. Its own bundle ID keeps its container and install apart from the App Store
+        # app.
+        Debug:
+          PRODUCT_BUNDLE_IDENTIFIER: com.mlkshkvch.pdf-unpack.dev
+          VERSION_SUFFIX: -dev
+          # Rendered from AppIcon by Scripts/make-dev-icon.swift.
+          ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon-Dev
+    # Release is the App Store app, and only an Xcode archive builds it.
+    preBuildScripts:
+      - name: Release builds only by archive
+        basedOnDependencyAnalysis: false
+        script: |
+          if [ "$CONFIGURATION" = Release ] && [ "$ACTION" != install ]; then
+            echo "error: Release is the App Store app and builds only by Product ▸ Archive. Use Debug."
+            exit 1
+          fi
     # One Info.plist serves both platforms. Each OS ignores the other's keys: NSServices and
     # LSApplicationCategoryType on iOS, the UI* keys on macOS. Xcode adds the minimum OS
     # version key for each platform from its deployment target.
@@ -64,7 +81,7 @@ targets:
       properties:
         CFBundleDisplayName: PDF Unpack
         CFBundleName: PDF Unpack
-        CFBundleShortVersionString: "$(MARKETING_VERSION)"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)$(VERSION_SUFFIX)"
         CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         LSApplicationCategoryType: public.app-category.utilities
         UILaunchScreen: {}
@@ -123,9 +140,16 @@ schemes:
       targets:
         PDFUnpackKit: all
         PDF Unpack: [run, profile, archive, analyze]
+    # Only archive builds Release; every other action builds the dev app.
     run:
       config: Debug
     test:
       config: Debug
       targets:
         - PDFUnpackTests
+    profile:
+      config: Debug
+    analyze:
+      config: Debug
+    archive:
+      config: Release

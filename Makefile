@@ -38,12 +38,12 @@ test: generate ## Run the unit tests
 	xcodebuild test -project "$(PROJECT)" -scheme "$(SCHEME)" \
 		-destination 'platform=macOS' CODE_SIGNING_ALLOWED=NO
 
-build: generate ## Build a Release .app (compile check; unsigned)
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
+build: generate ## Build the dev .app (compile check; unsigned)
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Debug \
 		-derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
 
-build-ios: generate ## Build a Release iOS app (compile check; unsigned)
-	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Release \
+build-ios: generate ## Build the dev iOS app (compile check; unsigned)
+	xcodebuild -project "$(PROJECT)" -scheme "$(SCHEME)" -configuration Debug \
 		-destination 'generic/platform=iOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO clean build
 
 # Ad-hoc signed, so no Team is needed. Opening the Simulator window is best effort: not every
@@ -55,7 +55,7 @@ run-ios: generate ## Build and launch on the iOS Simulator (SIM="iPhone 17")
 	xcrun simctl bootstatus "$(SIM)" -b > /dev/null
 	-open -a Simulator
 	xcrun simctl install "$(SIM)" "$(SIM_APP)"
-	xcrun simctl launch "$(SIM)" com.mlkshkvch.pdf-unpack
+	xcrun simctl launch "$(SIM)" com.mlkshkvch.pdf-unpack.dev
 
 fixtures: ## Regenerate the test PDFs in fixtures/ (pikepdf goes into tools/.venv)
 	python3 -m venv $(VENV)

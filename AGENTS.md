@@ -117,6 +117,12 @@ and `*.private.pdf` are git-ignored — keep it that way.
 
 ## Housekeeping
 
+- **Debug is the dev app; Release is the App Store app.** Debug builds
+  `com.mlkshkvch.pdf-unpack.dev`, version `<version>-dev`, with `AppIcon-Dev`, so its sandbox
+  container and install stay apart from the App Store app. Use Debug for every build, test, run
+  and simulator install. Release builds only by Product ▸ Archive, which only the owner runs; a
+  pre-build script fails any other Release build. After a change to `AppIcon`, run
+  `Scripts/make-dev-icon.swift`.
 - **Quote the project path** in every command — `"PDF Unpack.xcodeproj"` contains a space.
 - **The Mac app is sandboxed** (`ENABLE_APP_SANDBOX` plus `ENABLE_USER_SELECTED_FILES`, set for
   the macOS SDK only), as the Mac App Store requires. iOS sandboxes every app. Every path works
@@ -126,7 +132,7 @@ and `*.private.pdf` are git-ignored — keep it that way.
   unsigned, so they never run sandboxed; a signed ⌘R build does.
 - **Naming.** Display name `PDF Unpack`; code identifiers `PDFUnpack` (app struct
   `PDFUnpackApp`, temp dir prefix `PDFUnpack-<uuid>`, Services handler `openInPDFUnpack`);
-  bundle id `com.mlkshkvch.pdf-unpack`.
+  bundle id `com.mlkshkvch.pdf-unpack` (`.dev` for Debug).
 - **`PRIVACY.md` has a fixed URL.** App Store Connect and Help ▸ Privacy Policy both point at
   `github.com/lysyi3m/pdf-unpack/blob/master/PRIVACY.md`. Never move or rename it, and keep its
   claims true of the code.
@@ -135,7 +141,7 @@ and `*.private.pdf` are git-ignored — keep it that way.
   `CFBundleDocumentTypes` plus `LSSupportsOpeningDocumentsInPlace` put PDF Unpack in the share
   sheet for PDFs, and `.onOpenURL` loads what it hands over.
 - **Verify GUI changes in the running app.** `make build`, then
-  `open -a "build/Build/Products/Release/PDF Unpack.app" fixtures/sample-mixed.pdf`. System
+  `open -a "build/Build/Products/Debug/PDF Unpack.app" fixtures/sample-mixed.pdf`. System
   Events reaches the menus (View ▸ Quick Look, File ▸ Open…) and keystrokes;
   `CGWindowListCopyWindowInfo` gives window ids, and `screencapture -l <id>` captures one window.
   Synthetic drags are unreliable, and the Services item routes to whichever registered copy of
